@@ -1,0 +1,47 @@
+http://blog.csdn.net/pennyliang/article/details/17333373
+
+-----
+用于我们只要精确知道排序的顺序，而不需要知道具体的rank分数
+这样，我们可以不失一般性的，使用 1,2,3,4,5,6 .... 来界定最后的顺序，而不是rank值
+
+具体的方法是，找到空间上的一个向量 w，让所有的点 xi 在 w 向量方向的投影排列为正确的顺序
+假设为 k 个点，那么 xi 在 w 方向上的投影点排列在第 yi 位，那么我们可以找到各个 xi 投影的间隔点 b1,b2,...,bk-1,bk(bk=infinite)
+
+于是，算法就是迭代找到正确的 w 和 bi
+
+-----
+初始化：w=(0,0,,,0) , b(i)=0
+第t轮，given a point (x,y) ，calculate project(x) = w . x , 
+       then find index r, project(x) > b(r-1) && project(x) < b(r)  (which means r is the first(smallest) threshold)
+       so，actually rank is y, and predict rank y(t) = r (which is min{r: w.x - br < 0})
+ 
+       if y = y(t), continue;  // 故此，这个算法成为保守的 conservative
+
+       if y != y(t)，调整 w 和 b(i)
+       say y = (1,1,...1, -1,...-1), 这个 k 维向量，前 y - 1  个元素为 1， 后面的元素为 -1
+       于是，对于 r in (1...k)， y(r) . (w.x - b(r)) > 0 则表示在位置 r 处，x 的rank顺序是正确的；否则，该位置r处是错误的，则 br需要调整
+       那么调整的方法是将 w.x 和 br 相互靠近：
+         - 对所有的b(r)，b(r) = b(r) - y(r)
+	 - 对于 w，w = w + sum(y(r)).x
+
+
+       更深入的解释如下图：
+
+                1              1                     -1      index，为根据实际rank real_r 来定义的值，b1,b2处为1，后面为 -1
+
+         range1      range2          range3
+      ----------o-------x------o--------y------------o--     x 为 predict_r = 2 预测的rank；y 为 real_r =3 实际的 rank
+                b1            b2                   b3
+                        
+      于是对于预测rank, predict_r = w . x，落在第二个区间内，而不是第三个区间内，所以 predict_r = 2
+      predict_r - b1 > 0;  predict_r - b2 < 0;  predict_r - b3 < 0 .....
+
+      故此，对于 (predict_r - b(r)) * index，对于所有 r(对应所有的br)，该值小于0的区间都是错误的
+
+      故此，要做的调整是 b2 = b2 - index2(1);   w = w + (index2) * x = w + x  (w的运算是矢量运算)  
+	
+
+可以参考论文第三页最下面的例子 (对应图1)
+
+最后的目的是求出向量 w，这样，给一组未知的向量x，可以通过投影(做内积)的方式，比较其投影的位置； 
+bi 是不需要的，只是为了训练 w 来使用的
