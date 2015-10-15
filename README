@@ -1,6 +1,15 @@
 Coding while learning
 ---------------------------
 
+### from_backprop_to_rnn
+Implement backpropagation and recurrent neural network from scratch
+
+### gred_descent_and_dropout_with_numpy
+Learn to implement gredient descent and drop of neural network
+
+### theano
+Theano tutorials and some implementation referenced from deeplearning.net
+
 ### lda_nb_and_gibbs
 My implementation while learning lda, naive bayes and gibbs sampling.
 

@@ -157,3 +157,26 @@ class hmm_trainer(object):
         return restr.strip()
 
 
+    # given a solution(entence and the tags), calculate score
+    def rate(self, sentence, tags):
+        slen = len(sentence)
+        sb = tags[0]
+        score = log10(self.params_pi[sb]) + log10(self.params_b[sb][sentence[0]])
+        for i in range(slen - 1):
+            t = sentence[i + 1]
+            se = tags[i + 1]
+            score += log10(self.params_a[sb][se]) + log10(self.params_b[se][t])
+            sb = se 
+        return score
+        
+
+    # from a segment candidate array, return the tags
+    def sentence_to_tags(self, candidate):
+        tags = []
+        for item in candidate:
+            if len(item) == 1:
+                tags.append('S')
+            else:
+                tags += ['B'] + ['M'] * (len(item) - 2) + ['E']
+        return tags
+
