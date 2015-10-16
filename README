@@ -4,5 +4,11 @@ Coding while learning
 ### lda_nb_and_gibbs
 My implementation while learning lda, naive bayes and gibbs sampling.
 
+### segment_with_ngrams_hmm
+Segmentation practice with ngrams, hmm and mixture of them.
+
+### keras
+Keras examples with my comments while learning
+
 ### misc
 Some miscellaneous projects, not systematized, but useful or interesting.
