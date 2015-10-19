@@ -1,0 +1,136 @@
+模型参数对比
+---------------
+一些共有的参数如下：
+- 都是用 MNIST 数据集
+- 训练集 X 的size = 50000
+- improvement_threshold=0.995
+- patience_inc=2
+
+            BatchSize   HowManyBatches  Epoch(轮数)   Patience
+LogReg      600         50000/600=83     1000          5000
+MLP         20          50000/20=2500    1000          10000  
+
+### LogReg 训练过程分析
+LogReg 其实跑了 74 个 epoch 就停住了，这是因为每个 epoch 要跑一圈训练集的全部 minibatch，每跑一个 minibatch 称为一个 iter 
+故此，74 轮 eoch 共计跑了 iter = 74 * 83 = 6142 
+而，代码中设置了如果 patience < iter 也即 5000 < 6142，那么 done_looping = True，early stopping 机制
+
+你要说，不对啊， Patience / HowManyBatches = 5000 / 83 ~= 60，那么其实最多 61 轮就应该停住了啊
+这是因为，训练中一旦发现当前的最优解，而且这个最优解优化的还不错，不错到比之前最优解的 0.995 还要小 ( < best_validation_loss * improvement_threshold )
+那么，会增大 Patience:  patience = max(patience, iter * patience_inc)
+
+我们看，原 Patience = 5000， patience_inc = 2，那么 iter 大于 2500 时就可以增加 Patience 了；
+而 2500 / 83 ~= 30，也就是说，30 轮之后比较好的最优解就会增加 Patience，于是导致 Patience 增加，需要更多的轮数才能结束
+
+
+### MLP 训练过程分析
+套用这个理论看一下 MLP 的训练，注意到 BatchSize 很小 20个，那么 minibatch 的个数就多了，每一轮要跑 2500 个 minibatch
+假如 Patience 恒定，那么  Patience / HowManyBatches = 10000 / 2500 = 4，也就是说，按原逻辑，跑 4 轮(epoch) 训练就结束了
+
+然而并没有，跑了几百轮 ... 显然是因为 Patience 被增加了
+每一轮跑 2500 个minibatch，原 Patience = 10000， patience_inc = 2，于是由 patience = max(patience, iter * patience_inc)
+当 iter 超过 10000 / 2 = 5000 时，也就是说 5000 / 2500 = 2 训练超过两轮时发现了很好的最优解，那么 Patience 就会增加
+
+由于 iter 很大，故此其实 patience 也会增加的非常快
+比如第 10 轮是发现了这样的最优解，那么 iter = 10 * 2500，故此 patience 达到 10 * 2500 * 2 = 50000
+而 Patience / HowManyBatches = 50000 / 2500 = 20 就可以支持训练程序至少再多跑 10 轮 （20-10）
+
+
+### 一个发现
+由上面的例子，我们发现，加入第 n 轮上发现了很好的最优解，那么 patience = max(patience, iter * patience_inc) = max(patience, n * HowManyBatches * patience_inc)
+有一个可能性是 n 很小，那么或者 patience 甚至都不用增加，或者 patience 增加了也没增加多少
+然而，一旦 n 相对比较大了，那么 patience 增加到 n * HowManyBatches * patience_inc， 而我们知道每个 epoch 或者说每一轮 iter 会增加 HowManyBatches
+故此 Patience / HowManyBatches = n * patience_inc ；当 patience_inc=2 时，也就是 2n
+就是说 10轮上发现最优解，那么至少再跑 10轮； 30轮上发现，那么至少还得再跑 30轮训练，这个增长非常之恐怖
+
+根据这个，我猜测，LogReg 应该在 37 轮时发生了足够好的最优解，故此到了 37*2 = 74 轮才终止，查看 Log，发现
+>epoch 37, minibatch 83/83, validation error 7.802083 %
+>     epoch 37, minibatch 83/83, test error of best model 7.635417 %
+是这样的！ 尽管后面的 epoch 也又发现了最优解，然而这些最优解没有达到阈值条件 
+
+
+
+
+
+
+
+### CNN_LeNet 训练过程分析
+BatchSize = 500， HowManyBatches = 50000 / 500 = 100， 就是说每一轮 epoch 更新 100 次， iter += 100
+Patience = 10000，于是要想 patience < iter * patience_inc = iter * 2，那么要跑至少 10000 / 2 = 5000 个 iter 才会增大 patience
+也就是要跑 5000 / 100 = 50 个 epoch 之后，我们看一下训练日志：
+>
+training @ iter =  4700
+epoch 48, minibatch 100/100, validation error 1.090000 %
+    [!!] patience improve to 10000                                          <-- 这里有一个很优的最优解，但是 patience 还是 10000，第 48 个 epoch
+     epoch 48, minibatch 100/100, test error of best model 1.050000 %
+training @ iter =  4800
+epoch 49, minibatch 100/100, validation error 1.090000 %
+training @ iter =  4900
+epoch 50, minibatch 100/100, validation error 1.090000 %
+training @ iter =  5000
+epoch 51, minibatch 100/100, validation error 1.100000 %
+training @ iter =  5100
+epoch 52, minibatch 100/100, validation error 1.090000 %
+training @ iter =  5200
+epoch 53, minibatch 100/100, validation error 1.080000 %
+    [!!] patience improve to 10598                                          <-- 这里有一个很优的最优解，patience 增加到 10598，第 53 个 epoch
+     epoch 53, minibatch 100/100, test error of best model 1.030000 %
+>
+
+对于这个模型和构架，请仔细研究代码中的注释以及原 post
+而需要再强调的是，这个 MnistLeNet 顾名思义，不是一个通用的 LeNet 类，而是一个用于 Mnist 数据集的 LeNet 类，写死了很多个参数，我暂时没时间来通用化它
+也是同样的原因，在测试时，必须要扔进去 500 个样本，然后从结果中取出前 10 个，而不是向之前的 LogReg / MLP 测试，直接取 10个样本扔进去，就得到 10个结果
+
+但训练很有效，看到之前 LogReg / MLP 都分类错误的点，在 LeNet 中都分类正确了，嘿嘿，效果不错
+Predicted values for the first 10 examples in test set:
+[7 2 1 0 4 1 4 9 5 9]
+Original values:
+[7 2 1 0 4 1 4 9 5 9]
+
+MLP & CNN_LeNet 这两个模型，原 post 并没有给出 cPickle 保存训练结果的代码，我重写了代码的相关部分，重新做了类封装和模型导出的功能
+
+
+### Denoising Autoencoders 
+这是一个无监督学习，那么只使用 train_set_x 就足够了，不需要 test & validation 数据
+
+整个算法的流程和思路是这样：
+    输入层 通过 W 和 b_hidden 得到 隐藏层
+    隐藏层 通过 W_T 和 b_visible 得到输出层， W_T 是 W 的转置
+    输入层 和 输出层的维度完全一致，希望 输入层 和 输出层尽量的接近，损失函数可以使用 RMSE 或者 cross entropy
+    这样说明从输入到输出没有损失信息，进而说明隐藏层是保存了输入层的足够多的信息
+    最终，我们可以使用隐藏层的结果来替代输入层，进行后续的其他学习
+
+为了达到更好的效果，也为了中间的隐藏层不会是一个 I 单元矩阵 (使得输入输出完全一致，overfitting)，使用了 Denoising 的方法来做 Regularization
+具体的方法就是让输入的一部分分量为 0，那么让加了噪声的结果作为输入，希望学到和原来不加噪声的输入尽量接近的结果
+一旦学到了，就是说模型其实抓住了原输入的本质，抵抗了干扰
+
+同样，由于是无监督的，故此不需要做预测
+
+本模型是后续 Stacked Denoising AutoEncoder 的基础结构
+
+
+### Stacked Denoising Autoencoder
+以 Denoising Autoencoder 作为基础组建，堆接而成，目的是得到无监督的方式得到精炼的输入的特征
+并在上层放 LogReg 层，目的是使用得到的特征来做其他的监督学习
+训练时，先每个 Denoising Autoencoder 层自己单层做学习，就和上面一节完全一致，pre-training
+然后再把整个网络搭起来，通过监督学习的方法来再调整一遍参数，称为 fine-tuning
+
+dA1:  input --> hidden1 --> output  (pretraining)
+dA2:  input --> hidden2 --> output  (pretraining)
+SdA:  input --> hidden1  --> hidden2  --> output  (fine-tuning)
+看上去和两层(两个 HiddenLayer)的 MLP 一样，但是实际上每一层都是一个 dA 可以 pretraining，而不是直接整个来训练
+
+具体到代码，不多说了， 唯一要说的是，很奇怪，使用了 HiddenLayer 来构建每一个 denoising autoencoder 的参数，而不是直接构建；我感觉目的是为了要使用 HiddenLayer.output 来构建网络
+另外，很清楚的区分了，哪些参数是 dA 自己的参数，那些参数是 SdA 的参数，这样不同的参数在不同的训练过程 (pre-training && fine-tuning) 中学习
+
+最后，懒得调整结构和导出 cPickle 模型了，反正导出的方法很简单，目的是导出类的对象，这个类要实现预测结果的方法，这样就可以构建一个从输入到输出结果的 theano.function 作为预测模型了
+参见 cnn_lenet.py 等之前的模型即可
+
+
+### 后续
+在后面的我们就不在多做了，比如 RBM && Deep Belief Networks 基本上等同于 dA && SdA 的关系，即是自编码解码器 && 堆接编码器 + LogReg softmax 层做预测 的关系
+Restricted Boltzmann Machines - single layer generative RBM model
+Deep Belief Networks - unsupervised generative pre-training of stacked RBMs followed by supervised fine-tuning
+
+
+
