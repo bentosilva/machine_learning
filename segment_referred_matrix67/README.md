@@ -135,12 +135,42 @@ Avg aggreg:  1276.71891925
 
 这个文件有 62 万行之多，即使前面的改动也无法都跑完，需要进一步把结果空间压榨
 
-我们不妨把 max_word 从 5 改为 4，最多 4 个字构成词，然后继续运行
+我们不妨把 max_word 从 5 改为 4，最多 4 个字构成词，然后继续运行，这样的话，发现可以搜索 12 万行，再多也会超过内存限制
+
+12 万行的结果如下
 
 ```
 $ python2.7 segment_runner.py ./data/yuebingwb_origin ./data/pku_test.utf8 ./data/pku_test_segment_yuebing_default
+Avg len:  3.31473730036
+Avg freq:  2.04383795437e-06
+Avg left ent:  0.099274889243
+Avg right ent:  0.0985770575878
+Avg aggreg:  1857.47820923
+
+$ wc -l good_words.csv
+548
+
+$ wc -l candidates_statistics.csv
+1957102
 ```
 
+不用评估，也知道 good words 太少了；
+
+使用上面的 awk 技巧，选用不同的参数选取 good words
+
+```
+$ python2.7 segment_re_runner.py ./data/pku_test.utf8 ./data/pku_test_segment_yuebing_default 4 0.00001 0.07 1
+
+$ ./score pku_training_words.utf8 pku_test_gold.utf8 pku_test_segment_yuebing_default
+=== TOTAL TRUE WORDS RECALL:    0.629
+=== TOTAL TEST WORDS PRECISION: 0.501
+=== F MEASURE:  0.558
+=== OOV Rate:   0.058
+=== OOV Recall Rate:    0.084
+=== IV Recall Rate:     0.662
+```
+
+结果有所提高，但是效果并不好
 
 
 jieba 分词

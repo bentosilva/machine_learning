@@ -109,10 +109,12 @@ class Words(object):
             for line in f:
                 line = re.sub(pattern, '', line)
                 doc_length += len(line)
+                doc += line
                 line_cnt += 1
                 if line_cnt % 10000 == 0:
                     print "{} lines processed".format(line_cnt)
-                doc += line
+                    if line_cnt == 110000:
+                        break
                 # 每 batch_size 个汉字处理一次
                 if len(doc) < self.batch_size:
                     continue
@@ -133,7 +135,7 @@ class Words(object):
                 # 但是，最后的一个字符不能删，因为要作为下一个批次的 doc[0]，即左邻居
                 doc = doc[length - self.max_word - 1:]
         # 循环完毕，那么 doc 中剩下一些不到 self.batch_size 长的字符，需要做一下处理
-        length = len(text)
+        length = len(doc)
         # 同样，跳过 doc[0]
         for i in xrange(1, length):
             for j in xrange(i + 1, min(i + self.max_word + 1, length + 1)):
