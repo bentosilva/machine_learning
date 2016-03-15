@@ -142,7 +142,11 @@ class Words(object):
         def yield_words_from_file():
             with codecs.open("candidates_statistics.csv", "r", "utf-8") as f:
                 for line in f:
-                    text, freq, left, right, aggreg = line.strip().split('\t')
+                    try:
+                        text, freq, left, right, aggreg = line.strip().split('\t')
+                    except Exception, e:
+                        print e
+                        print line
                     yield TupleWord(text, float(freq), float(left), float(right), float(aggreg))
         self.filter(yield_words_from_file())
 

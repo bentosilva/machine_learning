@@ -107,6 +107,14 @@ $ ./score pku_training_words.utf8 pku_test_gold.utf8 pku_test_segment_yuebing_de
 
 如果想有突破的话，要么使用大内存机器训练，要么修改算法，不要一次性算出所有 candidate 组合，lazy 化，或者 MapReduce
 
+看到其实 candidates_statistics.csv 文件还是很大的，那么是不是可以通过调整参数来得到更多的 good_words.csv ，从而得到好结果呢？
+
+rerun 一次比较麻烦，为了更快的测试不同参数下得到的 good words，不妨使用类似下面的 awk 语句，直接调整参数
+
+$ awk -F'\t' '$2+0>0.00001&&$3+0>0.07&&$4+0>0.07&&$5+0>1{print}' candidates_statistics.csv > good_words.csv
+
+但是问题仍然是语料不足，调整几次参数并观察得到的结果文件，发现 candidates 的数据并没有明显的区分度，无法正确区分好词坏词
+
 
 jieba 分词
 ============
