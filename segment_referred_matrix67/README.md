@@ -116,6 +116,33 @@ $ awk -F'\t' '$2+0>0.00001&&$3+0>0.07&&$4+0>0.07&&$5+0>1{print}' candidates_stat
 但是问题仍然是语料不足，调整几次参数并观察得到的结果文件，发现 candidates 的数据并没有明显的区分度，无法正确区分好词坏词
 
 
+调整 3.
+=========
+
+修改 matrix67_segment.py 实现按 batch 训练，从训练文件中连续读出一些行，超过 batch_size 后，就对这批文本进行训练
+
+避免了一次性 load 过大的文件，导致内存超出系统限制
+
+```
+$ python2.7 segment_runner.py ./data/yuebingwb ./data/pku_test.utf8 ./data/pku_test_segment_yuebing_default
+Avg len:  3.80378937044
+Avg freq:  4.59740929117e-06
+Avg left ent:  0.0739574155469
+Avg right ent:  0.0735934635117
+Avg aggreg:  1276.71891925
+```
+看到，和前面的结果完全一致，说明逻辑没有问题，那么来跑原始的超大的微博数据
+
+这个文件有 62 万行之多，即使前面的改动也无法都跑完，需要进一步把结果空间压榨
+
+我们不妨把 max_word 从 5 改为 4，最多 4 个字构成词，然后继续运行
+
+```
+$ python2.7 segment_runner.py ./data/yuebingwb_origin ./data/pku_test.utf8 ./data/pku_test_segment_yuebing_default
+```
+
+
+
 jieba 分词
 ============
 

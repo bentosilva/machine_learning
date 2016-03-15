@@ -84,12 +84,11 @@ class Word(object):
 
 
 class Words(object):
-    def __init__(self, training_doc, batch_size=10000, max_word=4, min_freq=0.00005, min_entropy=2.0, min_aggreg=50):
+    def __init__(self, training_doc, max_word=5, min_freq=0.00005, min_entropy=2.0, min_aggreg=50):
         """
             max_word - 一个词最多5个字符长
         """
         super(Words, self).__init__()
-        self.batch_size = batch_size
         self.max_word = max_word
         self.min_freq = min_freq
         self.min_entropy = min_entropy
@@ -97,54 +96,21 @@ class Words(object):
         self.doc = training_doc
 
     def train(self):
-        print "counting training doc ..."
         pattern = re.compile(u'[\\s\\d,.<>/?:;\'\"[\\]{}()\\|~!@#$%^&*\\-_=+a-zA-Z，。《》、？：；“”‘’｛｝【】（）…￥！—┄－]+')
+        doc =re.sub(pattern, '', self.doc)
+        indices = Algorithm.sorted_substrs_indices(doc, self.max_word)
         candidates = {}
-        doc_length = 0
-        # 注意，doc 初始为一个空格，doc[0] 位置的字符不作为每次遍历的目标
-        # 而只是作为 doc[1] 的左邻居，这样避免训练下一个批次时，丢掉了起点的左邻
-        doc = u' '
-        line_cnt = 0
-        with codecs.open(self.doc, 'r', 'utf-8') as f:
-            for line in f:
-                line = re.sub(pattern, '', line)
-                doc_length += len(line)
-                line_cnt += 1
-                if line_cnt % 10000 == 0:
-                    print "{} lines processed".format(line_cnt)
-                doc += line
-                # 每 batch_size 个汉字处理一次
-                if len(doc) < self.batch_size:
-                    continue
-                length = len(doc)
-                # 从 1 开始遍历，目的是保留上次遍历留下来的左邻居
-                # 不取到 length，目的是保证从这一轮循环的每个起点起，
-                # 都能取到 self.max_word 长度的字串
-                # 比如 length = 10 ==> 0 1 2 3 4 5 6 7 8 9
-                # self.max_word = 5 ==> i 最多取到 4，这样可以取到
-                # "45678" 字串，而且能取到右邻居 ‘9’
-                for i in xrange(1, length - self.max_word):
-                    for j in xrange(i+1, i + self.max_word + 1):
-                        text = doc[i: j]
-                        if text not in candidates:
-                            candidates[text] = Word(text)
-                        candidates[text].meet(doc[i - 1: i], doc[j: j + 1])
-                # 本批次处理完毕，准备处理下一批次，那么前面处理过的字符可以删掉了
-                # 但是，最后的一个字符不能删，因为要作为下一个批次的 doc[0]，即左邻居
-                doc = doc[length - self.max_word - 1:]
-        # 循环完毕，那么 doc 中剩下一些不到 self.batch_size 长的字符，需要做一下处理
-        length = len(text)
-        # 同样，跳过 doc[0]
-        for i in xrange(1, length):
-            for j in xrange(i + 1, min(i + self.max_word + 1, length + 1)):
-                text = doc[i: j]
-                if text not in candidates:
-                    candidates[text] = Word(text)
-                candidates[text].meet(doc[i - 1: i], doc[j: j + 1])
+        print "counting training doc ..."
+        for i, j in indices:
+            text = doc[i: j]
+            if text not in candidates:
+                candidates[text] = Word(text)
+            candidates[text].meet(doc[i - 1: i], doc[j: j + 1])
         # 计算 freq 和左右邻熵
         print "making statistics ..."
+        length = len(doc)
         for word in candidates.values():
-            word.statistics(doc_length)
+            word.statistics(length)
         # 至此，全部 freq 都被计算完毕，可以计算凝固度了
         print "calculating aggregations ...."
         for text, word in candidates.items():

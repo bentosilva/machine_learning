@@ -18,9 +18,8 @@ def dump_file(filename, segments):
 
 
 if __name__ == '__main__':
-    doc_train = load_file(sys.argv[1])
     doc_test = load_file(sys.argv[2])
-    ws = Words(doc_train)
+    ws = Words(sys.argv[1])
     ws.train()
     sg = Segmentor(ws)
     segments = sg.run(doc_test)
