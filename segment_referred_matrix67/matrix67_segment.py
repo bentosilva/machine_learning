@@ -113,8 +113,8 @@ class Words(object):
                 line_cnt += 1
                 if line_cnt % 10000 == 0:
                     print "{} lines processed".format(line_cnt)
-                    if line_cnt == 110000:
-                        break
+                    # if line_cnt == 110000:
+                    #     break
                 # 每 batch_size 个汉字处理一次
                 if len(doc) < self.batch_size:
                     continue
@@ -153,7 +153,8 @@ class Words(object):
             if len(text) < 2:
                 continue
             word.aggreg = Algorithm.aggregation(word, candidates)
-        self.words = sorted(candidates.values(), key=lambda v: v.freq, reverse=True)
+        # 到这里，单个的词已经无用了，后面词库只记录双字以上的词
+        self.words = sorted([word for text, word in candidates.items() if len(text) > 1], key=lambda v: v.freq, reverse=True)
         # 一些统计数据
         total = float(len(self.words))
         print "Avg len: ", sum([len(w.text) for w in self.words]) / total
@@ -219,11 +220,3 @@ class Segmentor(object):
                     i += j
                     break
         return res
-
-
-if __name__ == '__main__':
-    doc = u'十四是十四四十是四十，，十四不是四十，，，，四十不是十四'
-    ws = Words(doc, max_word=2, min_entropy=0.5, min_aggreg=1)
-    ws.train()
-    sg = Segmentor(ws)
-    print sg.run(doc)

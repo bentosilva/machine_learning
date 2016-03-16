@@ -135,9 +135,9 @@ Avg aggreg:  1276.71891925
 
 这个文件有 62 万行之多，即使前面的改动也无法都跑完，需要进一步把结果空间压榨
 
-我们不妨把 max_word 从 5 改为 4，最多 4 个字构成词，然后继续运行，这样的话，发现可以搜索 12 万行，再多也会超过内存限制
+我们不妨把 max_word 从 5 改为 4，最多 4 个字构成词，然后继续运行，这样的话，发现可以搜索 11 万行，再多也会超过内存限制
 
-12 万行的结果如下
+11 万行的结果如下
 
 ```
 $ python2.7 segment_runner.py ./data/yuebingwb_origin ./data/pku_test.utf8 ./data/pku_test_segment_yuebing_default
@@ -171,6 +171,50 @@ $ ./score pku_training_words.utf8 pku_test_gold.utf8 pku_test_segment_yuebing_de
 ```
 
 结果有所提高，但是效果并不好
+
+
+调整 4.
+========
+
+前面的尝试中，candidates_statistics.csv 中是包含单个字的，只是 good_words.csv 中会过滤掉单个字
+
+训练脚本运行的统计数据也是把单个字计算在内的统计结果，而单个字的凝固都是 0，而且他们不会被最终收录 good_words.csv
+
+这次，我们仍然计算单个字的频率、邻居熵，但是统计结果时，不把单个字纳入统计，以在统计结果时消除单字的影响
+
+单字也不要导出到 candidates_statistics.csv 文件中
+
+修改 matrix67_segment.py 并运行
+
+```
+$ python2.7 segment_runner.py ./data/yuebingwb_origin ./data/pku_test.utf8 ./data/pku_test_segment_yuebing_default
+Avg len:  3.32220903678
+Avg freq:  1.53782635793e-06
+Avg left ent:  0.0944361883832
+Avg right ent:  0.0937640397724
+Avg aggreg:  1863.47395985
+```
+
+查看 candidates_statistics.csv 文件，并使用前面提到的 awk 技巧，确定参数
+
+$ python2.7 segment_re_runner.py ./data/pku_test.utf8 ./data/pku_test_segment_yuebing_default 4 0.00005 1 7
+
+$ cd data
+$ ./score pku_training_words.utf8 pku_test_gold.utf8 pku_test_segment_yuebing_default
+=== TOTAL TRUE WORDS RECALL:    0.682
+=== TOTAL TEST WORDS PRECISION: 0.515
+=== F MEASURE:  0.587
+=== OOV Rate:   0.058
+=== OOV Recall Rate:    0.078
+=== IV Recall Rate:     0.719
+
+比之前结果好的有限
+
+
+经过我的分析，我觉得利用这个方法从头直接分词并不靠谱
+
+但是如果有词库的前提下，做新词自动发现，也就是选取指标高的且不在词库中的词，会比较好
+
 
 
 jieba 分词
