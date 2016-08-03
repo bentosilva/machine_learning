@@ -1,10 +1,11 @@
+# encoding: utf-8
 '''
 LSTM 中文分词
 Refer: https://mp.weixin.qq.com/s?__biz=MzA4OTk5OTQzMg==&mid=2449231335&idx=1&sn=d3ba98841e85b7cea0049cc43b3c16ca
 
 设窗口长度为 7，那么从训练样本中切分 xxxoxxx，根据前三个 x，后三个 x 和 o 本身，训练 o 的 tag (B/E/M/S)
 为了能够处理开头和结尾的字符，要在训练文本和测试文本的开头和结尾分别 padding 三个 '\01' 不可见字符，作为 START/END
-要求训练文本和测试文本没有空格、tab、换行等无效字符；这里默认已经处理过了，不需要本脚本再去做处理
+要求训练文本和测试文本没有空格；这里默认已经处理过了，不需要本脚本再去做处理
 重要：算法中默认测试集中没有训练文本中不存在的汉字，也就是说，要求训练文本中的汉字空间是完全覆盖的!!!!
 这里没有把整个训练和测试流程化，只是提供了函数接口 pretraining, training, run_test
 '''
@@ -17,7 +18,7 @@ from keras.optimizers import RMSprop
 import numpy as np
 
 
-def pretraining(train_text, train_tags, maxlen=7, step=3):
+def pretraining(train_text, train_tags, maxlen, step):
     """
         train_text: 待训练文本
         train_tags: 待训练tags，和train_text等长，且一一对应
