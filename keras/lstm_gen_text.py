@@ -9,6 +9,7 @@ import random
 import sys
 
 '''
+    老版本，新版本见 github keras examples: lstm_text_generation.py
     Example script to generate text from Nietzsche's writings.
     At least 20 epochs are required before the generated text
     starts sounding coherent.
