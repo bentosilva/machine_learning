@@ -1,7 +1,7 @@
 # encoding: utf-8
 
 import codecs
-from lstm_segment import pretraining, training, run_test
+from lstm_segment_v1 import pretraining, training, run_test
 
 
 # training file 由空格和换行符号分割分词，如：
