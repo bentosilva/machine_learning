@@ -25,11 +25,11 @@ Traceback (most recent call last):
 MemoryError
 ```
 
-np.zeros((len(windows), maxlen, len(chars))) 维度为 621520 * 7 * 4701 = 0.6 M * 7 * 4.7K = 20G，就算每个 float 占 4 个字节，那么也要 80 G
+np.zeros((len(windows), maxlen, len(chars))) 维度为 621520 * 7 * 4701 = 0.6 M * 7 * 4.7K = 20G，就算每个 np.bool 占 1 个字节，那么也要 20 G
 
-maxlen = 7 和 one-hot 4701 基本不会变，那么按 X 只占 1G 内存来算，1G / 7 / 4.7K / 4 = 7.6 K
+maxlen = 7 和 one-hot 4701 基本不会变，那么按 X 只占 1G 内存来算，1G / 7 / 4.7K  = 30.3 K
 
-故此一次性 X 最多能放进 7.6 K 个切分的测试样本，我们可以把 7.6 K 个切分样本作为一个 Batch，把测试文件能切分出的全部样本按 Batch 分批 train
+故此一次性 X 最多能放进 30.3 K 个切分的测试样本，我们可以把 30.3 K 个切分样本作为一个 Batch，把测试文件能切分出的全部样本按 Batch 分批 train
 
 调整文件，得到 ver.2
 
