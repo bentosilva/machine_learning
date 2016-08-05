@@ -54,8 +54,8 @@ def dump_file(out_dir, test_text, predict_tags, iteration, diversity):
 def workflow(train_file, test_file, out_dir, maxlen=7, step=3):
     train_text, train_tags = load_train_file(train_file)
     test_text = load_test_file(test_file)
-    # 窗口长为7，间隔3，一批最大内存 1G
-    segmentor = LS(7, 3, 1000000000)
+    # 窗口长为7，间隔3，一个批次的最大内存
+    segmentor = LS(7, 3, 400000000)
     batchsize, batchnum = segmentor.pretraining(train_text, train_tags)
     for i, model in enumerate(segmentor.training(batchsize, batchnum)):
         for diversity in [0.5, 1, 1.5]:

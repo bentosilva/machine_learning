@@ -6,6 +6,8 @@ Refer: https://mp.weixin.qq.com/s?__biz=MzA4OTk5OTQzMg==&mid=2449231335&idx=1&sn
 ver.1 的问题在于一次训练所有的 windows，导致内存过大，具体来说就是 X 太大了；
 这里通过分 batch 训练来解决这个问题，分批放到 lstm model 的 fit 中，每次 X 只是一批 windows 的矢量化数据
 注意，fit 函数本身还有个 batch_size，这个是训练时分批做参数更新用的，在这里我们称为 minibatch
+
+另外还处理了测试文本中有字不在训练文本中的问题；在初始化为 np.zeros 的条件下，只处理在训练文本中的字，那么不在的字自然 one-hot 都是 0
 '''
 
 from __future__ import print_function
@@ -80,14 +82,14 @@ class LstmSegmentor(object):
         windows = self.windows[spos: epos]
         next_tags = self.next_tags[spos: epos]
         # 考虑到不一定整除，故此，下面不能轻率的使用 batchsize 替换 len(windows)
-        X = np.zeros((len(windows), self.maxlen, len(self.chars)), dtype=np.bool)
-        y = np.zeros((len(windows), len(self.tags)), dtype=np.bool)
+        self.X = np.zeros((len(windows), self.maxlen, len(self.chars)), dtype=np.bool)
+        self.y = np.zeros((len(windows), len(self.tags)), dtype=np.bool)
         for i, sentence in enumerate(windows):
             for t, char in enumerate(sentence):
-                X[i, t, self.char_indices[char]] = 1
-            y[i, self.tag_indices[next_tags[i]]] = 1
+                self.X[i, t, self.char_indices[char]] = 1
+            self.y[i, self.tag_indices[next_tags[i]]] = 1
 
-        return X, y
+        # return X, y
 
     def training(self, batchsize, batchnum, hidden_nodes=128, minibatch_size=128, nb_epoch=1):
         # build the model: 2 stacked LSTM
@@ -97,8 +99,8 @@ class LstmSegmentor(object):
             self.print_iteration_sign(iteration)
             for batch_idx in range(batchnum):
                 print("   |__ batch: ", batch_idx)
-                X, y = self.vectorize_per_batch(batchsize, batch_idx)
-                model.fit(X, y, batch_size=minibatch_size, nb_epoch=nb_epoch)
+                self.vectorize_per_batch(batchsize, batch_idx)
+                model.fit(self.X, self.y, batch_size=minibatch_size, nb_epoch=nb_epoch)
             yield model
 
     def run_test(self, model, test_text, diversity):
@@ -107,6 +109,7 @@ class LstmSegmentor(object):
             test_text: 待预测字符串
             diversity: 调整抽样概率
         """
+        print('test text length: ', len(test_text))
         print('>>>>> diversity: ', diversity)
         half_window = self.maxlen / 2
         # padding with '\01'
@@ -116,10 +119,13 @@ class LstmSegmentor(object):
         end_pos = len(test_text) - half_window
         # 每个字都要预测，故此显然不要设置 step
         for i in range(half_window, end_pos):
+            if (i + 1) % 1000 == 0:
+                print("{} words predicted".format(i + 1))
             window = test_text[i - half_window: i + half_window + 1]
             x = np.zeros((1, self.maxlen, len(self.chars)))
             for t, char in enumerate(window):
-                x[0, t, self.char_indices[char]] = 1.
+                if char in self.char_indices:
+                    x[0, t, self.char_indices[char]] = 1
             preds = model.predict(x, verbose=0)[0]
             next_index = self.sample(preds, diversity)
             next_tags += self.tags[next_index]
@@ -145,6 +151,7 @@ class LstmSegmentor(object):
             反之 temparature > 1 会均匀化，比如同样的数组，经过 1.3 变为  array([ 0.12757797,  0.17427316,  0.43999216,  0.2581567 ])
         """
         preds = np.asarray(preds).astype('float64')
+        # return np.argmax(preds)
         preds = np.log(preds) / temperature
         exp_preds = np.exp(preds)
         preds = exp_preds / np.sum(exp_preds)
