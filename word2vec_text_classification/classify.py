@@ -167,6 +167,23 @@ def create_bag_of_centroids(wordlist, word_centroid_map, key_cluster):
     return bag_of_centroids
 
 
+def keras_classify(df):
+    # 预处理，把 text 中的词转成数字编号
+    from keras.preprocessing.text import Tokenizer
+    max_features = 50000  # 只选最重要的词
+    # Tokenizer 只能处理 str，不能处理 unicode
+    textraw = map(lambda x: x.encode('utf-8'), df.seg_word.values.tolist())
+    token = Tokenizer(nb_words=max_features)
+    # 由于 df.seg_word 以空格相隔，故此这里 Tokenizer 直接按英文方式处理 str 即可完成分词
+    token.fit_on_texts(textraw)
+    # token 中记录了每个词的编号和出现次数，这里使用词编号来代替 textraw 中的词文本
+    # 如 textraw = ['a b c', 'c d e f']  ==> text_seq = [[1, 2, 3], [3, 4, 5, 6]]
+    text_seq = token.texts_to_sequences(textraw)
+    nb_classes = len(np.unique(df.label.values))
+    print "num of features(vocabulary): ", len(token.word_counts)
+    print "num of labels: ", nb_classes
+
+
 if __name__ == '__main__':
     df = prepare_data()
     tfidf_classify(df)

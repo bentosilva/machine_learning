@@ -21,3 +21,9 @@ Keras examples with my comments while learning
 
 ### misc
 Some miscellaneous projects, not systematized, but useful or interesting.
+
+### segment_referred_matrix67
+Segmentation practice to implement the algorithm by Matrix67.
+
+### word2vec_text_classification
+Text classification with TF-IDF+Bayes / Word2Vec etc.

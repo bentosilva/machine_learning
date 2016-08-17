@@ -1,13 +1,14 @@
 文档分类预测
 ==================
 
-Refer: http://xccds1977.blogspot.sg/2015/05/word2vec.html
+Refer: [使用 Word2Vec 进行文本分类](http://xccds1977.blogspot.sg/2015/05/word2vec.html) [使用深度学习库keras做文本分类](http://xccds1977.blogspot.sg/2015/11/keras.html)
 
-本文档介绍了 3 中文档分类预测的算法
+本文档介绍了 4 中文档分类预测的算法
 
 1. TF-IDF + Bayes
 2. Word2Vec + Cluster
 3. Word2Vec + 词向量平均化
+4. Keras 深度学习库文本分类
 
 ### 数据准备
 
@@ -16,12 +17,12 @@ Refer: http://xccds1977.blogspot.sg/2015/05/word2vec.html
 在 prepare_data() 函数中，利用 jieba 对文本分词，分词后把文本再以空格分隔串起来
 
 最后得到一个 DataFrame, as below:
-
->       label    txt                 seg_word
->   0   教育     北京教育局发布      北京 教育局 发布
->   1   孩子     春天孩子容易感冒    春天 孩子 容易 感冒
->   .........
-
+```
+       label    txt                 seg_word
+   0   教育     北京教育局发布      北京 教育局 发布
+   1   孩子     春天孩子容易感冒    春天 孩子 容易 感冒
+   .........
+```
 可以使用 cPickle 模块来保存和导入
 
 ### 算法一  TF-IDF + Bayes
@@ -52,4 +53,5 @@ Refer: http://xccds1977.blogspot.sg/2015/05/word2vec.html
 ### 算法三  Word2Vec + 词向量平均化
 
 这个更为简单粗暴，df 中的每个句子，逐词的 vector 直接相加，然后平均化，得到一个句子 vector，维度显然同词向量维度，也是 100
+
 然后塞给 GradientBoostingClassifier 模型进行分类训练和预测
