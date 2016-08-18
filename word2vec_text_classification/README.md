@@ -68,7 +68,7 @@ Refer: [使用 Word2Vec 进行文本分类](http://xccds1977.blogspot.sg/2015/05
 到此，训练集 X & Y 维度分别为 (训练集句子数 X seqlen) 和 (训练集句子数 X 标签数)
 
 然后 keras 采用了 4 中模型来训练，分别为
-
+```
 1. CNN: Word-Embedding -> Dropout -> Convolution1D -> MaxPooling1D -> Flatten -> Dense -> Dropout -> Relu -> Dense -> Softmax
 2. LSTM: Word-Embedding -> LSTM -> Dense -> Dropout -> Relu -> Dense -> Softmax
 3. CNN+LSTM: Word-Embedding -> Dropout -> Convolution1D -> MaxPooling1D -> LSTM -> Dropout -> Relu -> Dense -> Softmax
@@ -76,3 +76,4 @@ Refer: [使用 Word2Vec 进行文本分类](http://xccds1977.blogspot.sg/2015/05
     input -> Word-Embedding ---> Convolution1D -> MaxPooling1D -> Flatten ---> Dense(relu) -> Dropout -> Dense(softmax) -> output
                              |-> Convolution1D -> MaxPooling1D -> Flatten -|
                              |-> Convolution1D -> MaxPooling1D -> Flatten -|
+```
