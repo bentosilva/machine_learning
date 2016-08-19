@@ -1,5 +1,13 @@
-利用 LSTM 中文分词
-===================
+脚本介绍
+===========
+
+- lstm_gen_text.py -- 旧版本 Keras example 中的代码，加入我的注释；注意新版本中该脚本代码有了一些变化，名字也改为 lstm_text_generation.py
+- lstm_segment_v${i}.py + lstm_segment_runner_v${i}.py -- 参考 lstm_gen_text.py 实现了 LSTM 的中文分词，把窗口预测词的逻辑改为窗口预测 BEMS 标记
+- lstm_w2v_segment.py -- 另一个版本的深度学习分词
+
+
+lstm_segment_v${i}.py 利用 LSTM 中文分词
+===========================================
 
 ### ver.1
 
@@ -90,3 +98,16 @@ MemoryError
 - 要么大改一下，使 one-hot 编码的维度按训练文本+测试文本中的独立字数决定
 
 这里用了前一种，因为后一种的要求也过于强了，如果新预测一个文件，而文件中有之前没有的字，就只能重新训练了 ...
+
+
+lstm_w2v_segment.py 利用深度学习 + Word2Vec 进行分词
+=======================================================
+
+参考文档:  [基于深度LSTM的中文分词](http://xccds1977.blogspot.sg/2015/11/blog-post_25.html)
+
+和上面的分词有一些不同之处：
+
+1. 不再考虑换行 \r\n 字符
+2. 使用了 gensim 先对训练文本进行分词处理，注意 gensim.word2vec 在训练时也会产生一元词的 word-embedding 向量
+    由于 word2vec 后的维度只有几百，故此训练向量就要小的多了；而前面的版本采用的是 one-hot 向量化，维度达到几万，导致内存不足
+
