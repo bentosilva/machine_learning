@@ -141,7 +141,7 @@ def prepare_train_data(filename, load_w2v_file=False):
 
 def train(windows, tags, ordered_w2v, batch_size=128):
     label_dict = dict(zip(['B', 'M', 'E', 'S'], range(4)))
-    # num_dict = {n: l for l, n in label_dict.iteritems()}
+    num_dict = {n: l for l, n in label_dict.iteritems()}
     # tags 转化为数字
     train_label = [label_dict[y] for y in tags]
 
@@ -168,7 +168,55 @@ def train(windows, tags, ordered_w2v, batch_size=128):
     model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=["accuracy"])
 
     print('train ...')
-    model.fit(train_X, Y_train, batch_size=batch_size, nb_epoch=5, validation_data=(test_X, Y_test))
+    model.fit(train_X, Y_train, batch_size=batch_size, nb_epoch=20, validation_data=(test_X, Y_test))
+
+	graph = Graph()
+	graph.add_input(name='input', input_shape=(maxlen,), dtype=int)
+	graph.add_node(Embedding(max_features, word_dim, input_length=maxlen), name='embedding', input='input')
+	graph.add_node(LSTM(output_dim=hidden_units), name='fwd', input='embedding')
+	graph.add_node(LSTM(output_dim=hidden_units, go_backwards=True), name='backwd', input='embedding')
+	graph.add_node(Dropout(0.5), name='dropout', input=['fwd', 'backwd'])
+	graph.add_node(Dense(4, activation='softmax'), name='softmax', input='dropout')
+	graph.add_output(name='output', input='softmax')
+	graph.compile(loss={'output': 'categorical_crossentropy'}, optimizer='adam')	
+	graph.fit({'input': train_X, 'output': Y_train, batch_size=batch_size, nb_epoch=20, validation_data=({'input': test_X, 'output': Y_test}))
+
+	import theano
+	weight_len = len(model.get_weights())
+	for w in model.get_weights():
+		print(w.shape)
+	layer = theano.function([model.layers[0].input, model.layers[3].get_output(train=False), allow_input_downcast=True)
+	layer_out = layer(test_X[:10])
+	layer_out.shape   # 前 10 个窗口的第 0 层输出，经过了 relu 计算, should be (10, 4)
+	temp_txt = u'国家食药监总局发布通知称，酮康唑口服制剂因存在严重肝毒性不良反应，即日起停止生产销售使用。'
+	temp_txt = list(temp_txt)
+	temp_vec = sent2veclist(temp_txt, word2idx, context=7)
+	temp_result = make_predict(temp_vec, temp_txt, model, label_dict, num_dict)
+
+
+def make_predict(input_vec, input_txt, model, label_dict, num_dict):
+	input_vec = np.array(input_vec)
+	predict_prob = model.predict_proba(input_vec, verbose=False)
+	predict_label = model.predict_classes(input_vec, verbose=False)
+	# fix 一些可能的逻辑错误
+	for i, label in enumerate(predict_label[: -1]):
+		# 首字不可为 E/M
+		if i == 0:
+			predict_prob[i, label_dict[u'E']] = 0
+			predict_prob[i, label_dict[u'M']] = 0
+		# 前字为B，后字不可为B,S
+		if lable == label_dict[u'B']:
+			predict_prob[i + 1, label_dict[u'B']] = 0
+			predict_prob[i + 1, label_dict[u'S']] = 0
+		# 前字为E，后字不可为M,E
+		# 前字为M，后字不可为B,S
+		# 前字为S，后字不可为M,E
+		
+		predict_label[i + 1] = predict_prob[i+1].argmax()
+	predict_label_new = [num_dict[x]  for x in predict_label]
+	result =  [w+'/' + l  for w, l in zip(input_txt, predict_label_new)]
+	return ' '.join(result) + '\n'
+		
 
 
 if __name__ == '__main__':
