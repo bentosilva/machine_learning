@@ -105,9 +105,49 @@ lstm_w2v_segment.py 利用深度学习 + Word2Vec 进行分词
 
 参考文档:  [基于深度LSTM的中文分词](http://xccds1977.blogspot.sg/2015/11/blog-post_25.html)
 
-和上面的分词有一些不同之处：
+和前面的分词有一些不同之处：
 
-1. 不再考虑换行 \r\n 字符
-2. 使用了 gensim 先对训练文本进行分词处理，注意 gensim.word2vec 在训练时也会产生一元词的 word-embedding 向量
-    由于 word2vec 后的维度只有几百，故此训练向量就要小的多了；而前面的版本采用的是 one-hot 向量化，维度达到几万，导致内存不足
+- 语料的处理
+	+ 前面的版本把整个语料合成一个大的字符串，只在最前面和最后面添加 padding 字符；这样的话，中间的 \r\n 换行字符都保留下来
+	+ 这里把语料中的每行单独处理，每行的前面和后面添加 padding 字符，这样就不再需要处理换行符，直接 strip 掉即可
+
+- 每个"字"的处理
+	+ 前面的版本采用的是 one-hot 向量化，字符向量的维度为训练语料中独立字的个数，达到万的量级，故此训练数据非常大，导致了内存不足而需要分批处理
+	+ 这里使用了 word-embedding 的方法，使用了一个 Embedding 层，把每个独立字符转化为一个默认 100 维的向量，这样训练数据要小的多了
+		原参考 link 中首先使用 gensim 对训练文本进行分词，然而训练得到的 w2v 模型却没有真正利用起来；完全可以不做分词，因为 Embedding 层本质上就是学习了一个关于独立字符的 embedding 向量表达；
+		另外，gensim 学到的 w2v 模型其实是关于训练样本中独立"词"的向量，而不是字符的，故此 w2v 模型就算学习出来了，也用不到训练语料的字符上
+
+
+注意事项： 我写了一个 word_freq 函数，使用 keras 的 Tokenizer 来计算训练语料中的“词”频率
+  	然而，其实程序整个算法都是基于字符的，无论是字符频率还是判断未登录字符，都不是基于词的
+  	和前面 word-embedding 部分的介绍类似，训练语料中的“词”其实对算法无意义，只决定了词中字符的 BMES 标识而已
+	使用 nltk 库中的 Text 配合 FreqDist 可以得到字符级的频率
+
+
+流程和逻辑：
+```
+prepare_train_data(filename)
+	load_training_file(filename)
+		lines - ['天气 不错', '出去 玩', ..]
+			char_freq(lines)
+				freqdf - DataFrame {header: 'word', 'freq', 'idx', values: [ ..., ['天', 53, 15], ..., ['气', 39, 31], ....}
+			max_features - freqdf.shape[0] 全部独立字符数
+			word2idx - 实际应为 char2idx，字符 => idx，并加入 padding 和 未登录字向量
+			idx2word - 实际应为 idx2char，idx => 字符，并加入 padding 和 未登录字向量
+		words - [ ['天气', '不错'], ['出去', '玩'], ..]
+			sent2veclist(word, word2idx, context=7)
+				windows - [ [pad,pad,pad,15,31,...], [pad,pad,15,31, ...], ...]
+		tags - 'BEBEBES...'
+	return windows, tags, word2idx
+
+run(windows, tags, word2idx, batch_size=128)
+	label_dict - label -> idx
+	num_dict - idx -> label
+	windows ==> train_X/test_X
+	tags transformed by label_dict ==> train_y/test_y one-hot ==> Y_train, Y_test
+	Stacking-LSTM:  Embedding -> LSTM -> LSTM -> Dropout -> Dense -> Activation
+	Graph:  input -> Embedding ---> LSTM -----> Dropout -> Dense(softmax) -> output
+                                |-> LSTM  ->|
+	predict sample & test_file
+```                      
 
