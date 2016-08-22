@@ -140,7 +140,7 @@ prepare_train_data(filename)
 		tags - 'BEBEBES...'
 	return windows, tags, word2idx
 
-run(windows, tags, word2idx, batch_size=128)
+run(windows, tags, word2idx, test_file, batch_size=128)
 	label_dict - label -> idx
 	num_dict - idx -> label
 	windows ==> train_X/test_X

@@ -13,6 +13,8 @@ from keras.layers.core import Dense, Dropout, Activation
 from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM
 from sklearn.cross_validation import train_test_split
+import nltk
+from nltk.probability import FreqDist
 
 
 def load_training_file(filename):
@@ -55,8 +57,8 @@ def word_freq(lines):
 
 def char_freq(lines):
     """ 返回 DataFrame，按字符频率倒序排列 """
-    corpus = nltk.Text(chain.from_iterable(lines))  # 需要一个长字符串，而不是字符串列表 
-	wc = FreqDist(corpus)
+    corpus = nltk.Text(chain.from_iterable(lines))  # 需要一个长字符串，而不是字符串列表
+    wc = FreqDist(corpus)
     df = pd.DataFrame({'word': wc.keys(), 'freq': wc.values()})
     df.sort('freq', ascending=False, inplace=True)
     df['idx'] = np.arange(len(wc.values()))
@@ -65,7 +67,7 @@ def char_freq(lines):
 
 def word2vec_train(corpus, epochs=20, size=100, sg=1, min_count=1, num_workers=4, window=6, sample=1e-5, negative=5):
     """
-	其实并未真正使用
+    其实并未真正使用
     word-embedding 维度 size
     至少出现 min_count 次才被统计，由于要和 Tokenizer 统计词频中的词一一对应，故此这里 min_count 必须为 1
     context 窗口长度 window
@@ -88,9 +90,10 @@ def word2vec_train(corpus, epochs=20, size=100, sg=1, min_count=1, num_workers=4
 
 
 def word2vec_order(w2v, idx2word):
-	"""
-	其实并未真正使用
-    按 word index 顺序保存 word2vec 的 embedding 矩阵，而不是用 w2v.syn0 """
+    """
+    其实并未真正使用
+    按 word index 顺序保存 word2vec 的 embedding 矩阵，而不是用 w2v.syn0
+    """
     ordered_w2v = []
     for i in xrange(len(idx2word)):
         ordered_w2v.append(w2v[idx2word[i]])
@@ -126,14 +129,14 @@ def prepare_train_data(filename):
     word2idx = dict((c, i) for c, i in zip(freqdf.word, freqdf.idx))
     idx2word = dict((i, c) for c, i in zip(freqdf.word, freqdf.idx))
 
-	"""
+    """
     if load_w2v_file:
         w2v = word2vec.Word2Vec.load('w2v_model')
     else:
         w2v = word2vec_train(words)
     print "Shape of word2vec model: ", w2v.syn0.shape
     ordered_w2v = word2vec_order(w2v, idx2word)
-	"""
+    """
 
     # 定义'U'为未登陆新字, 'P'为两头padding用途，并增加两个相应的向量表示
     char_num = len(idx2word)
@@ -153,7 +156,7 @@ def prepare_train_data(filename):
     return windows, tags, word2idx
 
 
-def run(windows, tags, word2idx, batch_size=128):
+def run(windows, tags, word2idx, test_file, batch_size=128):
     label_dict = dict(zip(['B', 'M', 'E', 'S'], range(4)))
     num_dict = {n: l for l, n in label_dict.iteritems()}
     # tags 转化为数字
@@ -169,31 +172,32 @@ def run(windows, tags, word2idx, batch_size=128):
     maxlen = 7  # 即 context
     hidden_units = 100
 
-	model = build_lstm_model(max_features, word_dim, maxlen, hidden_units)
+    model = build_lstm_model(max_features, word_dim, maxlen, hidden_units)
     print('train model ...')
     model.fit(train_X, Y_train, batch_size=batch_size, nb_epoch=20, validation_data=(test_X, Y_test))
+    save_model(model)
 
-	""" graph training
-	graph = build_lstm_graph(max_features, word_dim, maxlen, hidden_units)
-	print('train graph ...')
-	graph.fit({'input': train_X, 'output': Y_train, batch_size=batch_size, nb_epoch=20, validation_data=({'input': test_X, 'output': Y_test}))
-	"""
+    """
+    graph training
+    graph = build_lstm_graph(max_features, word_dim, maxlen, hidden_units)
+    print('train graph ...')
+    graph.fit({'input': train_X, 'output': Y_train, batch_size=batch_size, nb_epoch=20, validation_data=({'input': test_X, 'output': Y_test}))
+    """
 
-	# model structure understanding
-	import theano
-	weight_len = len(model.get_weights())
-	print "LSTM model weights:"
-	for w in model.get_weights():
-		print(w.shape)
-	layer = theano.function([model.layers[0].input, model.layers[3].get_output(train=False), allow_input_downcast=True)
-	layer_out = layer(test_X[:10])
-	print "example output shape of top 10 test_X: ", layer_out.shape   # 前 10 个窗口的第 0 层输出，经过了 relu 计算, should be (10, 4)
+    # model structure understanding
+    import theano
+    print "LSTM model weights:"
+    for w in model.get_weights():
+        print(w.shape)
+    layer = theano.function([model.layers[0].input], model.layers[3].get_output(train=False), allow_input_downcast=True)
+    layer_out = layer(test_X[:10])
+    print "example output shape of top 10 test_X: ", layer_out.shape   # 前 10 个窗口的第 0 层输出，经过了 relu 计算, should be (10, 4)
 
-	temp_txt = u'国家食药监总局发布通知称，酮康唑口服制剂因存在严重肝毒性不良反应，即日起停止生产销售使用。'
-	temp_txt_list = list(temp_txt)
-	temp_vec = sent2veclist(temp_txt_list, word2idx, context=7)
-	print " ==> ", predict_sentence(temp_vec, temp_txt, model, label_dict, num_dict)
-	segment_file(filename, filename + '.out', word2idx, model, label_dict, num_dict)
+    temp_txt = u'国家食药监总局发布通知称，酮康唑口服制剂因存在严重肝毒性不良反应，即日起停止生产销售使用。'
+    temp_txt_list = list(temp_txt)
+    temp_vec = sent2veclist(temp_txt_list, word2idx, context=7)
+    print " ==> ", predict_sentence(temp_vec, temp_txt, model, label_dict, num_dict)
+    segment_file(test_file, test_file + '.out', word2idx, model, label_dict, num_dict)
 
 
 def build_lstm_model(max_features, word_dim, maxlen, hidden_units):
@@ -206,81 +210,106 @@ def build_lstm_model(max_features, word_dim, maxlen, hidden_units):
     model.add(Dense(4))    # 输出 4 个结果对应 BMES
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=["accuracy"])
-	return model
+    return model
 
 
 def build_lstm_graph(max_features, word_dim, maxlen, hidden_units):
-	graph = Graph()
-	graph.add_input(name='input', input_shape=(maxlen,), dtype=int)
-	graph.add_node(Embedding(max_features, word_dim, input_length=maxlen), name='embedding', input='input')
-	graph.add_node(LSTM(output_dim=hidden_units), name='fwd', input='embedding')
-	graph.add_node(LSTM(output_dim=hidden_units, go_backwards=True), name='backwd', input='embedding')
-	graph.add_node(Dropout(0.5), name='dropout', input=['fwd', 'backwd'])
-	graph.add_node(Dense(4, activation='softmax'), name='softmax', input='dropout')
-	graph.add_output(name='output', input='softmax')
-	graph.compile(loss={'output': 'categorical_crossentropy'}, optimizer='adam')	return graph
+    graph = Graph()
+    graph.add_input(name='input', input_shape=(maxlen,), dtype=int)
+    graph.add_node(Embedding(max_features, word_dim, input_length=maxlen), name='embedding', input='input')
+    graph.add_node(LSTM(output_dim=hidden_units), name='fwd', input='embedding')
+    graph.add_node(LSTM(output_dim=hidden_units, go_backwards=True), name='backwd', input='embedding')
+    graph.add_node(Dropout(0.5), name='dropout', input=['fwd', 'backwd'])
+    graph.add_node(Dense(4, activation='softmax'), name='softmax', input='dropout')
+    graph.add_output(name='output', input='softmax')
+    graph.compile(loss={'output': 'categorical_crossentropy'}, optimizer='adam')
+    return graph
+
+
+def save_model(model):
+    print "save model to json file"
+    model_json = model.to_json()
+    with open('model.json', 'w') as json_file:
+        json_file.write(model_json)
+    # serialize weights to HDF5 format
+    model.save_weights("model.h5")
+
+
+def load_model():
+    from keras.models import model_from_json
+    with open('model.json', 'r') as json_file:
+        model_json = json_file.read()
+        model = model_from_json(model_json)
+        model.load_weights("model.h5")
+        return model
+    return None
 
 
 def predict_sentence(input_vec, input_txt, model, label_dict, num_dict):
-	"""
-	给句子分词，然后根据逻辑调整不正常的分词结果，然后输出结果
-	"""
-	input_vec = np.array(input_vec)
-	predict_prob = model.predict_proba(input_vec, verbose=False)    # 得到每个 label 的概率
-	predict_label = model.predict_classes(input_vec, verbose=False)   # 得到最可能的 label 值
-	# fix 不正常的分词 label 错误，原则是根据前面的 label 纠正后面一个 label 的值，故此只取到最后一个结果 label 之前
-	for i in xrange(len(predict_label) - 1):
-		label = predict_label[i]
-		# 首字不可为 E/M
-		if i == 0:
-			predict_prob[i, label_dict[u'E']] = 0
-			predict_prob[i, label_dict[u'M']] = 0
-			# 更新本 label
-			predict_label[i] = predict_prob[i].argmax()
-			label = predict_label[i]
-		# 前字为B，后字不可为B,S
-		if label == label_dict[u'B']:
-			predict_prob[i + 1, label_dict[u'B']] = 0
-			predict_prob[i + 1, label_dict[u'S']] = 0
-		# 前字为E，后字不可为M,E
-		if label == label_dict[u'E']:
-			predict_prob[i + 1, label_dict[u'M']] = 0
-			predict_prob[i + 1, label_dict[u'E']] = 0
-		# 前字为M，后字不可为B,S
-		if label == label_dict[u'M']:
-			predict_prob[i + 1, label_dict[u'B']] = 0
-			predict_prob[i + 1, label_dict[u'S']] = 0
-		# 前字为S，后字不可为M,E
-		if label == label_dict[u'S']:
-			predict_prob[i + 1, label_dict[u'M']] = 0
-			predict_prob[i + 1, label_dict[u'E']] = 0
-		# 纠正之后，重新取下一个标签
-		predict_label[i + 1] = predict_prob[i + 1].argmax()
-	# 由标签数字来分词,空格分割
-	segs = []
-	bpos = 0
-	for i in xrange(len(predict_label)):
-		if num_dict[predict_label[i]] in ['S', 'E']:
-			segs.append(input_txt[bpos: i + 1])
-			bpos = i + 1
-	if bpos < len(predict_label):
-		segs.append(input_txt[bpos:])
-	return u' '.join(segs)
-		
+    """
+    给句子分词，然后根据逻辑调整不正常的分词结果，然后输出结果
+    """
+    input_vec = np.array(input_vec)
+    predict_prob = model.predict_proba(input_vec, verbose=False)    # 得到每个 label 的概率
+    predict_label = model.predict_classes(input_vec, verbose=False)   # 得到最可能的 label 值
+    # fix 不正常的分词 label 错误，原则是根据前面的 label 纠正后面一个 label 的值，故此只取到最后一个结果 label 之前
+    for i in xrange(len(predict_label) - 1):
+        label = predict_label[i]
+        # 首字不可为 E/M
+        if i == 0:
+            predict_prob[i, label_dict[u'E']] = 0
+            predict_prob[i, label_dict[u'M']] = 0
+            # 更新本 label
+            predict_label[i] = predict_prob[i].argmax()
+            label = predict_label[i]
+        # 前字为B，后字不可为B,S
+        if label == label_dict[u'B']:
+            predict_prob[i + 1, label_dict[u'B']] = 0
+            predict_prob[i + 1, label_dict[u'S']] = 0
+        # 前字为E，后字不可为M,E
+        if label == label_dict[u'E']:
+            predict_prob[i + 1, label_dict[u'M']] = 0
+            predict_prob[i + 1, label_dict[u'E']] = 0
+        # 前字为M，后字不可为B,S
+        if label == label_dict[u'M']:
+            predict_prob[i + 1, label_dict[u'B']] = 0
+            predict_prob[i + 1, label_dict[u'S']] = 0
+        # 前字为S，后字不可为M,E
+        if label == label_dict[u'S']:
+            predict_prob[i + 1, label_dict[u'M']] = 0
+            predict_prob[i + 1, label_dict[u'E']] = 0
+        # 纠正之后，重新取下一个标签
+        predict_label[i + 1] = predict_prob[i + 1].argmax()
+    # 由标签数字来分词,空格分割
+    return gen_segmented_sentence(predict_label, num_dict, input_txt)
+
+
+def gen_segmented_sentence(predict_label, num_dict, input_txt):
+    segs = []
+    bpos = 0
+    for i in xrange(len(predict_label)):
+        if num_dict[predict_label[i]] in ['S', 'E']:
+            segs.append(input_txt[bpos: i + 1])
+            bpos = i + 1
+    if bpos < len(predict_label):
+        segs.append(input_txt[bpos:])
+    return u' '.join(segs)
+
 
 def segment_file(filename, fileout, word2idx, model, label_dict, num_dict):
     with codecs.open(filename, 'r', 'utf-8') as fp:
-		with codecs.open(fileout, 'w', 'utf-8') as fout
-	        for line in fp:
-    	        line = line.strip()
-				line_list = list(line)
-				line_vec = sent2veclist(line_list, word2idx, context=7)
-				seg_result = predict_sentence(line_vec, line, model, label_dict, num_dict)
-				fout.write(seg_result + u'\n')
+        with codecs.open(fileout, 'w', 'utf-8') as fout:
+            for line in fp:
+                line = line.strip()
+                line_list = list(line)
+                line_vec = sent2veclist(line_list, word2idx, context=7)
+                seg_result = predict_sentence(line_vec, line, model, label_dict, num_dict)
+                fout.write(seg_result + u'\n')
 
 
 if __name__ == '__main__':
     import sys
-    infile = sys.argv[1]
-    windows, tags, word2idx = prepare_train_data(infile)
-    run(windows, tags, word2idx, batch_size=128)
+    train_file = sys.argv[1]
+    test_file = sys.argv[2]
+    windows, tags, word2idx = prepare_train_data(train_file)
+    run(windows, tags, word2idx, test_file, batch_size=128)
