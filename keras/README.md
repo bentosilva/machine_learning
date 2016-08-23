@@ -115,13 +115,23 @@ lstm_w2v_segment.py 利用深度学习 + Word2Vec 进行分词
 	+ 前面的版本采用的是 one-hot 向量化，字符向量的维度为训练语料中独立字的个数，达到万的量级，故此训练数据非常大，导致了内存不足而需要分批处理
 	+ 这里使用了 word-embedding 的方法，使用了一个 Embedding 层，把每个独立字符转化为一个默认 100 维的向量，这样训练数据要小的多了
 		原参考 link 中首先使用 gensim 对训练文本进行分词，然而训练得到的 w2v 模型却没有真正利用起来；完全可以不做分词，因为 Embedding 层本质上就是学习了一个关于独立字符的 embedding 向量表达；
-		另外，gensim 学到的 w2v 模型其实是关于训练样本中独立"词"的向量，而不是字符的，故此 w2v 模型就算学习出来了，也用不到训练语料的字符上
-
+		另外，gensim 学到的 w2v 模型其实是关于训练样本中独立"词"的向量，而不是字符的，故此 w2v 模型就算学习出来了，也用不到训练语料的字符上；
+        不过也说明，这个 Embedding 层顺手学习出来的 word-embedding，哦其实是 char-embedding，并没有什么用，他是字符的 embedding，而不是词的
 
 注意事项： 我写了一个 word_freq 函数，使用 keras 的 Tokenizer 来计算训练语料中的“词”频率
   	然而，其实程序整个算法都是基于字符的，无论是字符频率还是判断未登录字符，都不是基于词的
   	和前面 word-embedding 部分的介绍类似，训练语料中的“词”其实对算法无意义，只决定了词中字符的 BMES 标识而已
 	使用 nltk 库中的 Text 配合 FreqDist 可以得到字符级的频率
+
+另外，要使用 save_weights 保存为 hdf5 文件，还需要
+    sudo yum install -y epel-release
+    sudo yum install hdf5-devel
+    sudo pip2.7 install h5py
+
+另外，在 save_weight 时会报错 “ValueError: Zero sized dimension for non-unlimited dimension”，参考 https://github.com/fchollet/keras/issues/3208 修改 keras 的源文件可以解决！
+
+- keras/engine/topology.py 2363 行前面加入 if weight_names != []: 判断
+- 同样，load_weight() 也要修改，2411 行前面加入 if 'weight_names' not in g.attrs: continue
 
 
 流程和逻辑：
