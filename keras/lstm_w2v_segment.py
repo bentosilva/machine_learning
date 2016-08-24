@@ -184,7 +184,8 @@ def run(windows, tags, word2idx, test_file, batch_size=128):
     graph.fit({'input': train_X, 'output': Y_train, batch_size=batch_size, nb_epoch=20, validation_data=({'input': test_X, 'output': Y_test}))
     """
 
-    # model structure understanding
+    """
+    # model structure understanding, but seems not working with my keras version
     import theano
     print "LSTM model weights:"
     for w in model.get_weights():
@@ -192,6 +193,7 @@ def run(windows, tags, word2idx, test_file, batch_size=128):
     layer = theano.function([model.layers[0].input], model.layers[3].get_output(train=False), allow_input_downcast=True)
     layer_out = layer(test_X[:10])
     print "example output shape of top 10 test_X: ", layer_out.shape   # 前 10 个窗口的第 0 层输出，经过了 relu 计算, should be (10, 4)
+    """
 
     temp_txt = u'国家食药监总局发布通知称，酮康唑口服制剂因存在严重肝毒性不良反应，即日起停止生产销售使用。'
     temp_txt_list = list(temp_txt)
@@ -301,6 +303,8 @@ def segment_file(filename, fileout, word2idx, model, label_dict, num_dict):
         with codecs.open(fileout, 'w', 'utf-8') as fout:
             for line in fp:
                 line = line.strip()
+                if line == "":
+                    continue
                 line_list = list(line)
                 line_vec = sent2veclist(line_list, word2idx, context=7)
                 seg_result = predict_sentence(line_vec, line, model, label_dict, num_dict)
