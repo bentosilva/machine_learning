@@ -153,6 +153,7 @@ def prepare_train_data(filename):
     print "Length of train y: ", len(tags)
     cPickle.dump(windows, open('training_chars.pickle', 'wb'))
     cPickle.dump(tags, open('training_tags.pickle', 'wb'))
+    cPickle.dump(word2idx, open('training_w2idx.pickle', 'wb'))
     return windows, tags, word2idx
 
 

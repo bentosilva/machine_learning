@@ -130,14 +130,20 @@ lstm_w2v_segment.py 利用深度学习 + Word2Vec 进行分词
 
 另外，在 save_weight 时会报错 “ValueError: Zero sized dimension for non-unlimited dimension”，参考 https://github.com/fchollet/keras/issues/3208 修改 keras 的源文件可以解决！
 
-- keras/engine/topology.py 2363 行前面加入 if weight_names != []: 判断
+- keras/engine/topology.py save_weight() 加入 if weight_names != []: 判断
 > if weight_names != []:         # add line here
 >     g.attrs['weight_names'] = weight_names
 >     for name, val in zip(weight_names, weight_values):
 >         param_dset = g.create_dataset(name, val.shape, dtype=val.dtype)
 >         param_dset[:] = val
 
-- 同样，load_weight() 也要修改，2411 行前面加入 if 'weight_names' not in g.attrs: continue
+- 同样，load_weight() 也要修改，两处加入 if 'weight_names' not in g.attrs: continue
+> for name in layer_names:
+>     g = f[name]
+>     if 'weight_names' not in g.attrs:
+>          continue
+>     weight_names = [n.decode('utf8') for n .......
+> ........
 > weight_value_tuples = []
 > for k, name in enumerate(layer_names):
 >     g = f[name]
@@ -173,3 +179,18 @@ run(windows, tags, word2idx, test_file, batch_size=128)
 	predict sample & test_file
 ```                      
 
+查看结果：
+
+```
+$ ./score pku_training_words.utf8 pku_test_gold.utf8 pku_test.utf8.out
+...........
+=== TOTAL TRUE WORDS RECALL:    0.906
+=== TOTAL TEST WORDS PRECISION: 0.913
+=== F MEASURE:  0.909
+=== OOV Rate:   0.058
+=== OOV Recall Rate:    0.511
+=== IV Recall Rate:     0.930
+###     pku_test.utf8.out       2377    3182    6636    12195   104372  103567  0.906   0.913   0.909   0.058   0.511   0.930
+```
+
+还是不错的！
