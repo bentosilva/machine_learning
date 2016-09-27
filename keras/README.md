@@ -205,8 +205,28 @@ Refererence: http://www.jianshu.com/p/7e233ef57cb7
 其实神经网络的部分，和上面一节完全一致，不同的地方有两点：
 
 1. Embedding 层使用了预训练的 model/sougou.char.model word2vec (其实是 char2vec 模型) 来做初始化
-2. 在训练之后，上面一节的做法是根据 tags 的共现规则修正结果，然后对每个 char 取其最大概率的 tag；而这里是使用Viterbi算法寻找最优的标注序列
+2. 在训练之后，上面一节的做法是根据 tags 的共现规则修正结果，然后对每个 char 直接取最大概率的 tag；而这里是使用Viterbi算法寻找最优的标注序列
 
-关于第一点，我没有预训练的模型，就算了，保持上面一节的做法就好了
+关于第一点，我没有预训练的模型，就算了，保持上面一节的做法就好了，而且更好的一点是，我们可以直接使用上面一节训练好的 model，减少很多麻烦
 
-由于第二点，故此在数据准备过程中，计算了 tags 的初始概率和转移概率
+由于第二点，故此在数据准备过程中，需要计算 tags 的初始概率和转移概率
+
+运行
+> nohup python2.7 lstm_viterbi_segment.py data/pku_training.utf8 data/pku_test.utf8 > lstm_viterbi_segment.log 2>&1
+
+查看结果
+
+```
+$ cd data
+$ ./score pku_training_words.utf8 pku_test_gold.utf8 pku_test.utf8.viterbi.out
+...........
+=== TOTAL TRUE WORDS RECALL:    0.903
+=== TOTAL TEST WORDS PRECISION: 0.916
+=== F MEASURE:  0.909
+=== OOV Rate:   0.058
+=== OOV Recall Rate:    0.519
+=== IV Recall Rate:     0.926
+###     pku_test.utf8.viterbi.out       2405    3845    6272    12522   104372  102932  0.903   0.916   0.909   0.058   0.519   0.926
+```
+
+看到，和前面的结果基本差不多

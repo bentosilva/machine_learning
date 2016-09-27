@@ -224,6 +224,7 @@ if __name__ == '__main__':
     test_file = sys.argv[2]
     label_dict = dict(zip(['B', 'M', 'E', 'S'], range(4)))
     num_dict = {n: l for l, n in label_dict.iteritems()}
+    print "prepare data ..."
     try:
         windows = cPickle.load(open('training_chars.pickle', 'rb'))
         tags = cPickle.load(open('training_tags.pickle', 'rb'))
@@ -232,12 +233,11 @@ if __name__ == '__main__':
         tagtranscnt = cPickle.load(open('training_tagtranscnt.pickle', 'rb'))
     except:
         windows, tags, word2idx, tagcnt, tagtranscnt = prepare_train_data(train_file, label_dict)
+    print "generate probs ..."
     initprob, transprob = cal_probs(tagcnt, tagtranscnt, tags)
 
     # run(label_dict, windows, tags, word2idx, test_file, batch_size=128)
+    print "loading model ..."
     model = load_model()
-    temp_txt = u'国家食药监总局发布通知称，酮康唑口服制剂因存在严重肝毒性不良反应，即日起停止生产销售使用。'
-    temp_txt_list = list(temp_txt)
-    temp_vec = sent2veclist(temp_txt_list, word2idx, context=7)
-    print " ==> ", predict_sentence(temp_vec, temp_txt, model, num_dict, initprob, transprob)
-    segment_file(test_file, test_file + '.out', word2idx, model, num_dict, initprob, transprob)
+    print "doing segmentation ..."
+    segment_file(test_file, test_file + '.viterbi.out', word2idx, model, num_dict, initprob, transprob)
