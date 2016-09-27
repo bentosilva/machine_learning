@@ -193,4 +193,20 @@ $ ./score pku_training_words.utf8 pku_test_gold.utf8 pku_test.utf8.out
 ###     pku_test.utf8.out       2377    3182    6636    12195   104372  103567  0.906   0.913   0.909   0.058   0.511   0.930
 ```
 
-还是不错的！
+还是不错的
+
+
+
+lstm_viterbi_segment.py 利用深度学习 + Viterbi 进行分词
+===========================================================
+
+Refererence: http://www.jianshu.com/p/7e233ef57cb7
+
+其实神经网络的部分，和上面一节完全一致，不同的地方有两点：
+
+1. Embedding 层使用了预训练的 model/sougou.char.model word2vec (其实是 char2vec 模型) 来做初始化
+2. 在训练之后，上面一节的做法是根据 tags 的共现规则修正结果，然后对每个 char 取其最大概率的 tag；而这里是使用Viterbi算法寻找最优的标注序列
+
+关于第一点，我没有预训练的模型，就算了，保持上面一节的做法就好了
+
+由于第二点，故此在数据准备过程中，计算了 tags 的初始概率和转移概率
