@@ -54,8 +54,10 @@ def make_word2vec_corpus(words):
     word2vec 目的是为了生成 char 级别的 vector，故此需要把词打散
     故此，这里返回一个 generator，每一次返回每一行的 char 列表，如 ['早', '上', '好']
     """
+    corpus = []
     for words_per_line in words:
-        yield list(''.join(words_per_line))
+        corpus.append(list(''.join(words_per_line)))
+    return corpus
 
 
 def word2vec_train(corpus, epochs=20, size=100, sg=1, min_count=1, num_workers=4, window=6, sample=1e-5, negative=5):

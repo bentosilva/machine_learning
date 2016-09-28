@@ -196,7 +196,6 @@ $ ./score pku_training_words.utf8 pku_test_gold.utf8 pku_test.utf8.out
 还是不错的
 
 
-
 lstm_viterbi_segment.py 利用深度学习 + Viterbi 进行分词
 ===========================================================
 
@@ -212,7 +211,7 @@ lstm_viterbi_segment.py 利用深度学习 + Viterbi 进行分词
 由于第二点，故此在数据准备过程中，需要计算 tags 的初始概率和转移概率
 
 运行
-> nohup python2.7 lstm_viterbi_segment.py data/pku_training.utf8 data/pku_test.utf8 > lstm_viterbi_segment.log 2>&1
+> nohup python2.7 lstm_viterbi_segment.py data/pku_training.utf8 data/pku_test.utf8 > lstm_viterbi_segment.log 2>&1 &
 
 查看结果
 
@@ -230,3 +229,17 @@ $ ./score pku_training_words.utf8 pku_test_gold.utf8 pku_test.utf8.viterbi.out
 ```
 
 看到，和前面的结果基本差不多
+
+
+lstm_viterbi_segment_v2.py 利用深度学习 + word2vec + Viterbi 进行分词
+=========================================================================
+
+上面一节中，由于没有原参考文档中的 model/sougou.char.model，故此没有使用 char 级别的 word2vec 模型
+
+其实不必使用 model/sougou.char.model，我们可以直接从训练文件中训练 word2vec 模型的啊
+
+于是，就有了本脚本
+
+运行
+> nohup python2.7 lstm_viterbi_segment_v2.py data/pku_training.utf8 data/pku_test.utf8 > lstm_viterbi_segment.log 2>&1 &
+
