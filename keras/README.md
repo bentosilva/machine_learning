@@ -200,7 +200,7 @@ $ ./score pku_training_words.utf8 pku_test_gold.utf8 pku_test.utf8.out
 lstm_viterbi_segment.py 利用深度学习 + Viterbi 进行分词
 ===========================================================
 
-Refererence: http://www.jianshu.com/p/7e233ef57cb7
+[Refererence](http://www.jianshu.com/p/7e233ef57cb6)
 
 其实神经网络的部分，和上面一节完全一致，不同的地方有两点：
 

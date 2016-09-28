@@ -2,9 +2,16 @@
 
 import codecs
 import numpy as np
+from gensim.models import word2vec
 import cPickle
 from itertools import chain
-from lstm_w2v_segment import char_freq, sent2veclist, load_model, gen_segmented_sentence
+from keras.utils import np_utils
+from keras.models import Sequential
+from keras.layers.core import Dense, Dropout, Activation
+from keras.layers.embeddings import Embedding
+from keras.layers.recurrent import LSTM
+from sklearn.cross_validation import train_test_split
+from lstm_w2v_segment import char_freq, sent2veclist, save_model, gen_segmented_sentence
 
 
 def load_training_file(filename, label_dict):
@@ -40,8 +47,49 @@ def load_training_file(filename, label_dict):
     return lines, words, tags, tagcnt, tagtranscnt
 
 
-def prepare_train_data(filename, label_dict):
-    lines, words, tags, tagcnt, tagtranscnt = load_training_file(filename, label_dict)
+def make_word2vec_corpus(words):
+    """
+    words 参数是通过上面 load_training_file 函数得到的，是一个列表，列表中每个元素也是个列表，为训练文件中的每一行对应的空格分割的词
+    例如：words: [ ['早上', '好'], ['天气', '不错'] ]
+    word2vec 目的是为了生成 char 级别的 vector，故此需要把词打散
+    故此，这里返回一个 generator，每一次返回每一行的 char 列表，如 ['早', '上', '好']
+    """
+    for words_per_line in words:
+        yield list(''.join(words_per_line))
+
+
+def word2vec_train(corpus, epochs=20, size=100, sg=1, min_count=1, num_workers=4, window=6, sample=1e-5, negative=5):
+    """
+    利用 word2vec 学习一个 char 级别的 vertors，用作 Embedding 层的初始 weight
+    word-embedding 维度 size
+    至少出现 min_count 次才被统计，由于要和所有字符一一对应，故此这里 min_count 必须为 1
+    context 窗口长度 window
+    sg=0 by default using CBOW； sg=1 using skip-gram
+    negative > 0, negative sampling will be used
+    """
+    w2v = word2vec.Word2Vec(workers=num_workers, sample=sample, size=size, min_count=min_count, window=window, sg=sg, negative=negative)
+    np.random.shuffle(corpus)
+    w2v.build_vocab(corpus)
+
+    for epoch in range(epochs):
+        print 'epoch: ', epoch
+        np.random.shuffle(corpus)
+        w2v.train(corpus)
+        w2v.alpha *= 0.9    # learning rate
+        w2v.min_alpha = w2v.alpha
+    print 'word2vec done'
+    word2vec.Word2Vec.save(w2v, 'w2v_model.chars')
+    return w2v
+
+
+def load_or_train_w2vmodel(words):
+    try:
+        return word2vec.Word2Vec.load('w2v_model.chars')
+    except:
+        return word2vec_train(make_word2vec_corpus(words))
+
+
+def prepare_train_data(lines, words, tags, tagcnt, tagtranscnt):
     freqdf = char_freq(lines)
     max_features = freqdf.shape[0]   # 词个数
     print "Number of words: ", max_features
@@ -66,7 +114,8 @@ def prepare_train_data(filename, label_dict):
     cPickle.dump(word2idx, open('training_w2idx.pickle', 'wb'))
     cPickle.dump(tagcnt, open('training_tagcnt.pickle', 'wb'))
     cPickle.dump(tagtranscnt, open('training_tagtranscnt.pickle', 'wb'))
-    return windows, tags, word2idx, tagcnt, tagtranscnt
+    cPickle.dump(words, open('training_words.pickle', 'wb'))
+    return windows, word2idx
 
 
 def cal_probs(tagcnt, tagtranscnt, tags):
@@ -74,6 +123,54 @@ def cal_probs(tagcnt, tagtranscnt, tags):
     initprob = tagcnt / total_tags
     transprob = tagtranscnt / sum(sum(tagtranscnt))
     return initprob, transprob
+
+
+def cal_embedding_params(w2v_model, word2idx):
+    # 使用 char 级别的 word2vec 模型为初始参数，那么就要让 Embedding 层的维度和 word2vec 模型维度一致
+    word_dim = w2v_model.vector_size
+    vec_unknown = [0] * word_dim
+    weights = np.zeros((len(word2idx), word_dim))
+    for word, idx in word2idx.iteritems():
+        weights[idx, :] = w2v_model[word] if word in w2v_model else vec_unknown
+    return word_dim, weights
+
+
+def run(word_dim, weights, label_dict, num_dict, windows, tags, word2idx, test_file, batch_size=128):
+    # tags 转化为数字
+    train_label = [label_dict[y] for y in tags]
+
+    train_X, test_X, train_y, test_y = train_test_split(np.array(windows), train_label, train_size=0.8, random_state=1)
+    # label num -> one-hot vector
+    Y_train = np_utils.to_categorical(train_y, 4)
+    Y_test = np_utils.to_categorical(test_y, 4)
+    # 词典大小
+    max_features = len(word2idx)
+    maxlen = 7  # 即 context
+    hidden_units = 100
+
+    model = build_lstm_model(word_dim, weights, max_features, maxlen, hidden_units)
+    print('train model ...')
+    model.fit(train_X, Y_train, batch_size=batch_size, nb_epoch=20, validation_data=(test_X, Y_test))
+    save_model(model)
+
+    temp_txt = u'国家食药监总局发布通知称，酮康唑口服制剂因存在严重肝毒性不良反应，即日起停止生产销售使用。'
+    temp_txt_list = list(temp_txt)
+    temp_vec = sent2veclist(temp_txt_list, word2idx, context=7)
+    print " ==> ", predict_sentence(temp_vec, temp_txt, model, num_dict, initprob, transprob)
+    segment_file(test_file, test_file + '.out', word2idx, model, num_dict, initprob, transprob)
+
+
+def build_lstm_model(word_dim, weights, max_features, maxlen, hidden_units):
+    print('stacking LSTM ...')
+    model = Sequential()
+    model.add(Embedding(max_features, word_dim, input_length=maxlen, mask_zero=True, weights=[weights]))
+    model.add(LSTM(output_dim=hidden_units, return_sequences=True))   # 中间层 lstm
+    model.add(LSTM(output_dim=hidden_units, return_sequences=False))
+    model.add(Dropout(0.5))
+    model.add(Dense(4))    # 输出 4 个结果对应 BMES
+    model.add(Activation('softmax'))
+    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=["accuracy"])
+    return model
 
 
 def viterbi(obs, states, initprob, transprob, emitprob):
@@ -148,12 +245,20 @@ if __name__ == '__main__':
         word2idx = cPickle.load(open('training_w2idx.pickle', 'rb'))
         tagcnt = cPickle.load(open('training_tagcnt.pickle', 'rb'))
         tagtranscnt = cPickle.load(open('training_tagtranscnt.pickle', 'rb'))
+        words = cPickle.load(open('training_words.pickle', 'rb'))
     except:
-        windows, tags, word2idx, tagcnt, tagtranscnt = prepare_train_data(train_file, label_dict)
+        lines, words, tags, tagcnt, tagtranscnt = load_training_file(train_file, label_dict)
+        windows, word2idx = prepare_train_data(lines, words, tags, tagcnt, tagtranscnt)
     print "generate probs ..."
     initprob, transprob = cal_probs(tagcnt, tagtranscnt, tags)
+    print "load or train w2v model"
+    w2v_model = load_or_train_w2vmodel(words)
+    print "generate embeding layer parameters"
+    word_dim, weights = cal_embedding_params(w2v_model, word2idx)
 
-    print "loading model ..."
-    model = load_model()
-    print "doing segmentation ..."
-    segment_file(test_file, test_file + '.viterbi.out', word2idx, model, num_dict, initprob, transprob)
+    print "running ..."
+    run(word_dim, weights, label_dict, num_dict, windows, tags, word2idx, test_file)
+    # print "loading model ..."
+    # model = load_model()
+    # print "doing segmentation ..."
+    # segment_file(test_file, test_file + '.viterbi.out', word2idx, model, num_dict, initprob, transprob)
