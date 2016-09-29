@@ -243,3 +243,18 @@ lstm_viterbi_segment_v2.py 利用深度学习 + word2vec + Viterbi 进行分词
 运行
 > nohup python2.7 lstm_viterbi_segment_v2.py data/pku_training.utf8 data/pku_test.utf8 > lstm_viterbi_segment.log 2>&1 &
 
+查看结果
+
+```
+$ cd data
+$ ./score pku_training_words.utf8 pku_test_gold.utf8 pku_test.utf8.viterbi.out
+...........
+=== TOTAL TRUE WORDS RECALL:    0.896
+=== TOTAL TEST WORDS PRECISION: 0.909
+=== F MEASURE:  0.903
+=== OOV Rate:   0.058
+=== OOV Recall Rate:    0.441
+=== IV Recall Rate:     0.924
+###     pku_test.utf8.viterbi.out       2425    3992    6891    13308   104372  102805  0.896   0.909   0.903   0.058   0.441   0.924
+
+发现，结果还略有下降 ...

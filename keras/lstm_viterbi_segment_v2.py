@@ -259,8 +259,9 @@ if __name__ == '__main__':
     word_dim, weights = cal_embedding_params(w2v_model, word2idx)
 
     print "running ..."
-    run(word_dim, weights, label_dict, num_dict, windows, tags, word2idx, test_file)
-    # print "loading model ..."
-    # model = load_model()
-    # print "doing segmentation ..."
-    # segment_file(test_file, test_file + '.viterbi.out', word2idx, model, num_dict, initprob, transprob)
+    # run(word_dim, weights, label_dict, num_dict, windows, tags, word2idx, test_file)
+    print "loading model ..."
+    from lstm_w2v_segment import load_model
+    model = load_model()
+    print "doing segmentation ..."
+    segment_file(test_file, test_file + '.viterbi.out', word2idx, model, num_dict, initprob, transprob)
