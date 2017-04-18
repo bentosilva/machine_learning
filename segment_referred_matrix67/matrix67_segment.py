@@ -27,7 +27,7 @@ class Algorithm(object):
         # substring 的开头索引
         for i in xrange(0, length):
             # substring 的结尾索引
-            for j in xrange(i+1, min(i + n + 1, length + 1)):
+            for j in xrange(i + 1, min(i + n + 1, length + 1)):
                 res.append([i, j])
         # 按 word 排序，但是返回序列号，因为后面需要通过序列号找到左右邻居
         return sorted(res, key=lambda (i, j): text[i: j])
@@ -55,7 +55,7 @@ class Algorithm(object):
             显然应该使用第一组的结果，因为第一组的 divide 更有代表性；然而显然第一组得到的结果更小 (分母的频率大)
             结果越大，那么说明组合在一起的概率比分开的概率之积的比值越大，成词可能越大
         """
-        return min([word.freq / allwords[pl].freq / allwords[pr].freq for pl, pr in parts]) if len(parts) > 0 else 0.0
+        return math.log(min([word.freq / allwords[pl].freq / allwords[pr].freq for pl, pr in parts])) if len(parts) > 0 else 1.0
 
 
 class Word(object):
@@ -84,7 +84,7 @@ class Word(object):
 
 
 class Words(object):
-    def __init__(self, training_doc, batch_size=10000, max_word=4, min_freq=0.00005, min_entropy=2.0, min_aggreg=50):
+    def __init__(self, training_doc, batch_size=10000, max_word=5, min_freq=0.00005, min_entropy=2.0, min_aggreg=50):
         """
             max_word - 一个词最多5个字符长
         """
@@ -126,7 +126,7 @@ class Words(object):
                 # self.max_word = 5 ==> i 最多取到 4，这样可以取到
                 # "45678" 字串，而且能取到右邻居 ‘9’
                 for i in xrange(1, length - self.max_word):
-                    for j in xrange(i+1, i + self.max_word + 1):
+                    for j in xrange(i + 1, i + self.max_word + 1):
                         text = doc[i: j]
                         if text not in candidates:
                             candidates[text] = Word(text)
@@ -176,6 +176,7 @@ class Words(object):
             就避免了重复的计数、统计和计算
         """
         TupleWord = namedtuple("TupleWord", ['text', 'freq', 'left', 'right', 'aggreg'])
+
         def yield_words_from_file():
             with codecs.open("candidates_statistics.csv", "r", "utf-8") as f:
                 for line in f:
@@ -220,3 +221,12 @@ class Segmentor(object):
                     i += j
                     break
         return res
+
+
+if __name__ == '__main__':
+    import sys
+    doc = sys.argv[1]
+    ws = Words(doc, max_word=2, min_entropy=0.5, min_aggreg=1)
+    ws.train()
+    # sg = Segmentor(ws)
+    # print sg.run(''.join(codecs.open(doc, 'r', 'utf-8').readlines()))
