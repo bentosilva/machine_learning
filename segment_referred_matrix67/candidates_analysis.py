@@ -5,15 +5,15 @@ import codecs
 import numpy as np
 from collections import namedtuple as nt
 
-Term = nt('Term', ['freq', 'left', 'right', 'aggreg'])
+Term = nt('Term', ['freq', 'left', 'right', 'aggreg', 'inner', 'score'])
 
 
 def load_data(fname='candidates_statistics.csv'):
     terms = {}
     with codecs.open(fname, 'r', 'utf-8') as fp:
         for line in fp:
-            term, freq, left, right, aggreg = line.strip().split('\t')
-            terms[term] = Term._make([float(freq), float(left), float(right), float(aggreg)])
+            term, freq, left, right, aggreg, inner, score = line.strip().split('\t')
+            terms[term] = Term._make([float(freq), float(left), float(right), float(aggreg), float(inner), float(score)])
     return terms
 
 
@@ -40,7 +40,7 @@ def test():
     terms = load_data()
     print "number of whole candidate terms: {}".format(len(terms))
 
-    for col in ['freq', 'left', 'right', 'aggreg']:
+    for col in ['freq', 'left', 'right', 'aggreg', 'inner', 'score']:
         print "---------------------------- {} -----------------------------".format(col)
         statistics(filter_column(terms, col).values())
 
