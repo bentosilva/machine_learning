@@ -4,6 +4,7 @@ import math
 import re
 import codecs
 from collections import namedtuple, defaultdict as dd
+import jieba
 
 
 class Algorithm(object):
@@ -192,10 +193,11 @@ class Words(object):
         """
             只取至少两个字组成的词
         """
+        jieba.dt.check_initialized()
         with codecs.open("good_words.csv", "w", "utf-8") as f:
             self.good_words = {}
             for w in words:
-                if len(w.text) > 1 and w.aggreg > self.min_aggreg and\
+                if w.text not in jieba.dt.FREQ and len(w.text) > 1 and w.aggreg > self.min_aggreg and\
                         w.freq > self.min_freq and w.left > self.min_entropy and\
                         w.right > self.min_entropy:
                     f.write(u"{}\t{}\t{}\t{}\t{}\n".format(w.text, w.freq, w.left, w.right, w.aggreg))
@@ -226,7 +228,9 @@ class Segmentor(object):
 if __name__ == '__main__':
     import sys
     doc = sys.argv[1]
-    ws = Words(doc, max_word=2, min_entropy=0.5, min_aggreg=1)
-    ws.train()
+    # ws = Words(doc)
+    # ws.train()
+    ws = Words('', min_freq=0, min_entropy=0.93, min_aggreg=6.79271256)
+    ws.train_from_candidates_file()
     # sg = Segmentor(ws)
     # print sg.run(''.join(codecs.open(doc, 'r', 'utf-8').readlines()))
