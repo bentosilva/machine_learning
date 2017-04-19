@@ -224,8 +224,11 @@ class Words(object):
 
 if __name__ == '__main__':
     import sys
+    from datetime import datetime
+    print datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     doc = sys.argv[1]
-    # ws = Words(doc)
-    # ws.train()
-    ws = Words('', min_freq=0.0, min_entropy=0.0, min_aggreg=0.0, min_score=7.30836163)
-    ws.train_from_candidates_file()
+    ws = Words(doc)
+    ws.train()
+    # ws = Words('', min_freq=0.0, min_entropy=0.0, min_aggreg=0.0, min_score=7.30836163)
+    # ws.train_from_candidates_file()
+    print datetime.now().strftime("%Y-%m-%d %H:%M:%S")

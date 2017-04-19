@@ -620,3 +620,51 @@ $ cd ./data/ && ./score pku_training_words.utf8 pku_test_gold.utf8 pku_test_segm
 结果和原来差不多，但是还偏低了些，说明原基准集中，并没有把一些词组合或者专有名词当作词来处理。
 
 但是这个新词列表，对我们来说，确实是有意义的
+
+
+
+调整 6. 优化效率
+==================
+
+前面的结果看上去还不错了，程序配合人工可以有效抽取部分新词
+
+那么，在大语料上跑会怎样呢？找一个不算大的先试试看
+```
+wc -l 000001.head.150000
+150000 000001.head.150000
+
+ll 000001.head.150000
+-rw-r--r-- 1 root root 15853615 Apr 19 16:23 000001.head.150000
+```
+这个语料共计 15 万行，15.85 M 大小，不算很大的语料了，中等偏下而已
+
+使用 5-gram 进行训练，发现竟然使用内存达到了 15.567 G，训练日志如下：
+```
+2017-04-19 16:25:14
+counting training doc ...
+10000 lines processed
+............
+150000 lines processed
+making statistics ...
+calculating aggregations ....
+Avg len:  4.08267433776
+Avg freq:  5.46789451297e-07
+Avg left ent:  0.108619210451
+Avg right ent:  0.10842349696
+Avg aggreg:  3.98498929392
+Avg inner ent:  0.482055385706
+Avg score:  3.57602933295
+2017-04-19 16:36:14
+```
+正好花费 11 分钟，生成的 n-gram 结果文件如下：
+```
+wc -l candidates_statistics.csv
+7315426 candidates_statistics.csv    <-- 700 多万个 n-gram
+
+ll candidates_statistics.csv
+-rw-r--r-- 1 root root 552381406 Apr 19 16:36 candidates_statistics.csv
+```
+
+处理一个 15.85 M 的文件，竟然花了这么多内存和时间，感觉效率是不够的
+
+
