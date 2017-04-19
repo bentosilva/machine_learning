@@ -186,7 +186,7 @@ class Words(object):
             for w in self.words:
                 f.write(u"{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(w.text, w.freq, w.left, w.right, w.aggreg, w.inner, w.score))
         # 过滤其中满足条件的词
-        self.filter(self.words)
+        # self.filter(self.words)
 
     def train_from_candidates_file(self):
         """
@@ -222,33 +222,10 @@ class Words(object):
                     self.good_words[w.text] = 1
 
 
-class Segmentor(object):
-    def __init__(self, trained_words):
-        """
-            trained_words - 已经做过训练的 Words 实例
-        """
-        super(Segmentor, self).__init__()
-        self.trained_words = trained_words
-
-    def run(self, sentence):
-        i = 0
-        res = []
-        while i < len(sentence):
-            # 首先考虑两个字以上组成的词，最后在看单字，单子并不在 trained_words.good_words 中
-            for j in range(2, self.trained_words.max_word + 1) + [1]:
-                if j == 1 or sentence[i: i + j] in self.trained_words.good_words:
-                    res.append(sentence[i: i + j])
-                    i += j
-                    break
-        return res
-
-
 if __name__ == '__main__':
     import sys
     doc = sys.argv[1]
     # ws = Words(doc)
     # ws.train()
-    ws = Words('', min_freq=0.0, min_entropy=0.0, min_aggreg=0.0, min_score=9.61508651)
+    ws = Words('', min_freq=0.0, min_entropy=0.0, min_aggreg=0.0, min_score=7.30836163)
     ws.train_from_candidates_file()
-    # sg = Segmentor(ws)
-    # print sg.run(''.join(codecs.open(doc, 'r', 'utf-8').readlines()))

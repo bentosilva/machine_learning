@@ -12,6 +12,15 @@ def load_file(filename):
     return doc
 
 
+def init_jieba():
+    jieba.dt.check_initialized()
+    with codecs.open('new_words', 'r', 'utf-8') as f:
+        for line in f:
+            w = line.strip()
+            if w:
+                jieba.add_word(w)
+
+
 def dump_file(filename, segments):
     with codecs.open(filename, 'w', 'utf-8') as f:
         f.write(u" ".join(segments))
@@ -19,6 +28,7 @@ def dump_file(filename, segments):
 
 if __name__ == '__main__':
     doc = load_file(sys.argv[1])
+    init_jieba()
     if sys.argv[3] == 'new':
         # 新词发现
         segments = jieba.cut(doc)
