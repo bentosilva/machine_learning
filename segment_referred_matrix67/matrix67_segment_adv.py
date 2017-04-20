@@ -6,7 +6,25 @@ import codecs
 from collections import namedtuple, defaultdict as dd
 from itertools import chain
 import jieba
+from line_profiler import LineProfiler
+from memory_profiler import profile
 
+
+def do_profile(follow=[]):
+    def inner(func):
+        def profiled_func(*args, **kwargs):
+            try:
+                pf = LineProfiler()
+                pf.add_function(func)
+                for f in follow:
+                    pf.add_function(f)
+                pf.enable_by_count()
+                return func(*args, **kwargs)
+            finally:
+                pf.print_stats()
+        return profiled_func
+    return inner
+ 
 
 class Algorithm(object):
     @staticmethod
@@ -111,6 +129,8 @@ class Words(object):
         self.doc = training_doc
         self.doc_length = 0
 
+    # @do_profile()
+    # @profile
     def train(self):
         print "counting training doc ..."
         pattern = re.compile(u'[\\s\\d,.<>/?:;\'\"[\\]{}()\\|~!@#$%^&*\\-_=+a-zA-Z，。《》、？：；“”‘’｛｝【】（）…￥！—┄－]+')

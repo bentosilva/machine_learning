@@ -623,8 +623,8 @@ $ cd ./data/ && ./score pku_training_words.utf8 pku_test_gold.utf8 pku_test_segm
 
 
 
-调整 6. 优化效率
-==================
+调整 6. 运行稍大数据，检查程序性能
+====================================
 
 前面的结果看上去还不错了，程序配合人工可以有效抽取部分新词
 
@@ -667,4 +667,69 @@ ll candidates_statistics.csv
 
 处理一个 15.85 M 的文件，竟然花了这么多内存和时间，感觉效率是不够的
 
+1. 使用 line_profiler 记录运行时间，再运行一次，看到各主要函数调用时间如下：
 
+```
+python2.7 matrix67_segment_adv.py 000001.head.150000
+
+Total time: 766 s          <-- 看到总时间比 11 分钟要长了一些，因为多了 line_profiler 的调用和统计时间
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   141         1           43     43.0      0.0          with codecs.open(self.doc, 'r', 'utf-8') as f:
+   142    150001      2367049     15.8      0.3              for line in f:
+   143    150000      1820807     12.1      0.2                  line = re.sub(pattern, '', line)
+
+   161   4482897      4082128      0.9      0.5                  for i in xrange(1, length - self.max_word):
+   162  26894700     27054195      1.0      3.5                      for j in xrange(i + 1, i + self.max_word + 1):
+   163  22412250     23011575      1.0      3.0                          text = doc[i: j]
+   164  22412250     25053925      1.1      3.3                          if text not in candidates:
+   165   7319914    108942251     14.9     14.2                              candidates[text] = Word(text)
+   166  22412250     78115134      3.5     10.2                          candidates[text].meet(doc[i - 1: i], doc[j: j + 1])
+
+   181   7320621      8674400      1.2      1.1          for word in candidates.values():
+   182   7320620     64398258      8.8      8.4              word.statistics(self.doc_length)
+
+   185   7320621     32588311      4.5      4.3          for text, word in candidates.items():
+   186   7320620      7383070      1.0      1.0              if len(text) < 2:
+   187      5194         4554      0.9      0.0                  continue
+   188   7315426     79724694     10.9     10.4              word.aggreg = Algorithm.aggregation(word, candidates)
+   189   7315426     58037577      7.9      7.6              word.inner = Algorithm.inner_entropy(word, candidates)
+   190   7315426     12056923      1.6      1.6              word.score = word.aggreg + min(word.left, word.right) - word.inner
+   192   7320621     32601768      4.5      4.3          self.words = sorted([word for text, word in candidates.items() if len(text) > 1], key=lambda v: v.freq, reverse=True)
+
+   195   7315427     11428597      1.6      1.5          print "Avg len: ", sum([len(w.text) for w in self.words]) / total
+   196   7315427     12214413      1.7      1.6          print "Avg freq: ", sum([w.freq for w in self.words]) / total
+   197   7315427     11151071      1.5      1.5          print "Avg left ent: ", sum([w.left for w in self.words]) / total
+   198   7315427     11100049      1.5      1.4          print "Avg right ent: ", sum([w.right for w in self.words]) / total
+   199   7315427     11071281      1.5      1.4          print "Avg aggreg: ", sum([w.aggreg for w in self.words]) / total
+   200   7315427     11740255      1.6      1.5          print "Avg inner ent: ", sum([w.inner for w in self.words]) / total
+   201   7315427     10853965      1.5      1.4          print "Avg score: ", sum([w.score for w in self.words]) / total
+   203         1        11255  11255.0      0.0          with codecs.open("candidates_statistics.csv", "w", "utf-8") as f:
+   204   7315427     11144625      1.5      1.5              for w in self.words:
+   205   7315426    108120371     14.8     14.1                  f.write(u"{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(w.text, w.freq, w.left, w.right, w.aggreg, w.inner, w.score))
+```
+看到几个花时间的部分为：
+
+- 字符串截取
+- 在一个大的 dict 中查找 key；这个和前面一条的共性是，其实 per hit 都很快，架不住调用次数多
+- 在一个大的 dict 中插入新 key/value，14.2%
+- Word.meet 函数，其实也是操作 dict 中的 key 和 value，10.2%
+- Word.statistics 函数，计算 entropy，8.4%
+- 对一个大的 dict 枚举 items()，4.3%，应该改为 iteritems() 应该能好些
+- Algorithm.aggregation，做出发和 log，10.4%
+- Algorithm.inner_entropy，从一个大 dict 中查找 key，做 min 等操作，7.6%
+- 大 dict 的枚举，排序 4.3%
+- 最后的平均值计算，每项指标 1.5% 左右；其实没啥必要做这些，不过做了也就做了吧
+
+2. 使用 memory_profiler 记录运行时间，再运行一次，结果 memory_profiler 运行非常非常之慢，而且得到的结果并不清晰
+
+换成 vprof 再试一下，运行如下：
+```
+vprof -c cmh "matrix67_segment_adv.py 000001.head.150000" --output-file vprof.json
+```
+把结果文件传到 windows 上，使用 vprof --input-file vprof.json 来在浏览器中打开查看
+
+结果还是比较慢，只要牵扯到内存，就慢了呢 ....
+
+那么，内存的检查先到这里，太慢了浪费时间，反正我们知道目前的数据结构所使用的内存还是太大了，根本无法在单机上跑较大的语料
