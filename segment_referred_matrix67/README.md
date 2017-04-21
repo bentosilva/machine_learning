@@ -736,7 +736,7 @@ vprof -c cmh "matrix67_segment_adv.py 000001.head.150000" --output-file vprof.js
 那么，内存的检查先到这里，太慢了浪费时间，反正我们知道目前的数据结构所使用的内存还是太大了，根本无法在单机上跑较大的语料
 
 
-3. 调研新的数据结构
+3. 调研 python's trie tree
 
 前面的问题主要出在内存上，即使计算效率低些，好歹能算完；内存占用太大就没法跑了；那么考虑使用 trie 来代替 python dict
 
@@ -749,9 +749,19 @@ vprof -c cmh "matrix67_segment_adv.py 000001.head.150000" --output-file vprof.js
 - [hat-trie](https://github.com/pytries/hat-trie) 也在上文中提及，主要问题是内存效率不高(而这正是我们需要解决的)，而且 api 不够完备
     但是，有一个极大的优点：trie variable is a dict-like object that support unicode keys and can have any Python object as a value
     而且，不是 read-only 的 !!!
+- [google's pygtrie](https://github.com/google/pygtrie)，和上面的 hat-trie 类似，api 接口满足我的需求，而且是 mutable 的
 
 那么，使用 hat-trie 来实现，得到 matrix67_segment_trie.py，运行 python2.7 matrix67_segment_trie.py 000001.head.150000
 
 同样 15 万行的语料，5-gram 模式运行，运行时间为 7 分半，比原来快了 3 分半；但是内存峰值达到 15.211 G，比原来的就好了一丢丢 ..
 
 从结果上看，hat-trie 确实在速度上有了一定的优化，但是正如其主页的说明，它对内存的效率没有太大的优化
+
+再用 pygtrie 试了一下，结果比 hat-trie 差了很多，时间花费 18 分钟，内存峰值 18 G，都不如普通的 python dict
+
+分析了一下，trie 树的优点在于前缀。这里我们用到 5-gram，那么一条从根到叶的路径确实能够保存一个 5-gram 及其子 n-gram
+
+上面测试中出现的内存效率不高的问题，一是因为所用的模块对内存的实现不够好，二是因为中文的单字数量太多，而前缀共现的情况少，结果前缀树过于平，而且既不够满又不够深
+
+
+
