@@ -623,8 +623,8 @@ $ cd ./data/ && ./score pku_training_words.utf8 pku_test_gold.utf8 pku_test_segm
 
 
 
-调整 6. 运行稍大数据，检查程序性能
-====================================
+调整 6. 运行稍大数据，检查程序性能，调研新的数据结构
+======================================================
 
 前面的结果看上去还不错了，程序配合人工可以有效抽取部分新词
 
@@ -722,6 +722,7 @@ Line #      Hits         Time  Per Hit   % Time  Line Contents
 - 大 dict 的枚举，排序 4.3%
 - 最后的平均值计算，每项指标 1.5% 左右；其实没啥必要做这些，不过做了也就做了吧
 
+
 2. 使用 memory_profiler 记录运行时间，再运行一次，结果 memory_profiler 运行非常非常之慢，而且得到的结果并不清晰
 
 换成 vprof 再试一下，运行如下：
@@ -733,3 +734,17 @@ vprof -c cmh "matrix67_segment_adv.py 000001.head.150000" --output-file vprof.js
 结果还是比较慢，只要牵扯到内存，就慢了呢 ....
 
 那么，内存的检查先到这里，太慢了浪费时间，反正我们知道目前的数据结构所使用的内存还是太大了，根本无法在单机上跑较大的语料
+
+
+3. 调研新的数据结构
+
+前面的问题主要出在内存上，即使计算效率低些，好歹能算完；内存占用太大就没法跑了；那么考虑使用 trie 来代替 python dict
+
+调研了如下产品：
+
+- [DAWG](https://github.com/pytries/DAWG)，values 是只读的，而且 value 最多支持到 tuple
+- [marisa-trie](https://github.com/pytries/marisa-trie)，同上；这两款产品都是内存效率很高的，但是由于只读，我们这里无法使用
+- [这篇文章](http://kmike.ru/python-data-structures/) 中还列举了一些有问题的 trie 实现，比如不支持 python2.x，不支持 unicode 等
+- 上面文章中还提到 datrie 树，这个的问题是在树很大的情况下插入无序的键值很慢，而且需要在初始化树的时候，提供词表 ...
+- [hat-trie](https://github.com/pytries/hat-trie) 也在上文中提及，主要问题是内存效率不高(而这正是我们需要解决的)，而且 api 不够完备
+    但是，有一个极大的优点：trie variable is a dict-like object that support unicode keys and can have any Python object as a value
