@@ -748,3 +748,10 @@ vprof -c cmh "matrix67_segment_adv.py 000001.head.150000" --output-file vprof.js
 - 上面文章中还提到 datrie 树，这个的问题是在树很大的情况下插入无序的键值很慢，而且需要在初始化树的时候，提供词表 ...
 - [hat-trie](https://github.com/pytries/hat-trie) 也在上文中提及，主要问题是内存效率不高(而这正是我们需要解决的)，而且 api 不够完备
     但是，有一个极大的优点：trie variable is a dict-like object that support unicode keys and can have any Python object as a value
+    而且，不是 read-only 的 !!!
+
+那么，使用 hat-trie 来实现，得到 matrix67_segment_trie.py，运行 python2.7 matrix67_segment_trie.py 000001.head.150000
+
+同样 15 万行的语料，5-gram 模式运行，运行时间为 7 分半，比原来快了 3 分半；但是内存峰值达到 15.211 G，比原来的就好了一丢丢 ..
+
+从结果上看，hat-trie 确实在速度上有了一定的优化，但是正如其主页的说明，它对内存的效率没有太大的优化

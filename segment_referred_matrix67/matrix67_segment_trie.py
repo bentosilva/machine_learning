@@ -8,7 +8,8 @@ from itertools import chain
 import jieba
 from line_profiler import LineProfiler
 # from memory_profiler import profile
-import hat_trie
+# import hat_triea
+import pygtrie
 
 
 def do_profile(follow=[]):
@@ -135,7 +136,8 @@ class Words(object):
     def train(self):
         print "counting training doc ..."
         pattern = re.compile(u'[\\s\\d,.<>/?:;\'\"[\\]{}()\\|~!@#$%^&*\\-_=+a-zA-Z，。《》、？：；“”‘’｛｝【】（）…￥！—┄－]+')
-        candidates = hat_trie.Trie()
+        # candidates = hat_trie.Trie()
+        candidates = pygtrie.Trie()
         self.doc_length = 0
         # 注意，doc 初始为一个空格，doc[0] 位置的字符不作为每次遍历的目标
         # 而只是作为 doc[1] 的左邻居，这样避免训练下一个批次时，丢掉了起点的左邻
@@ -181,19 +183,26 @@ class Words(object):
                 candidates[text].meet(doc[i - 1: i], doc[j: j + 1])
         # 计算 freq 和左右邻熵
         print "making statistics ..."
-        for text in candidates.iterkeys():
-            candidates[text].statistics(self.doc_length)
+        # hat_trie has not iteritems() func
+        # for text in candidates.iterkeys():
+        #     candidates[text].statistics(self.doc_length)
+        for _, word in candidates.iteritems():
+            word.statistics(self.doc_length)
         # 至此，全部 freq 和左右熵都被计算完毕，可以计算凝固度、内部熵，并得到最终得分了
         print "calculating aggregations ...."
-        for text in candidates.iterkeys():
+        # for text in candidates.iterkeys():
+        #     if len(text) < 2:
+        #        continue
+        #     word = candidates[text]
+        for text, word in candidates.iteritems():
             if len(text) < 2:
                 continue
-            word = candidates[text]
             word.aggreg = Algorithm.aggregation(word, candidates)
             word.inner = Algorithm.inner_entropy(word, candidates)
             word.score = word.aggreg + min(word.left, word.right) - word.inner
         # 到这里，单个的词已经无用了，后面词库只记录双字以上的词
-        self.words = sorted([candidates[text] for text in candidates.iterkeys() if len(text) > 1], key=lambda v: v.freq, reverse=True)
+        # self.words = sorted([candidates[text] for text in candidates.iterkeys() if len(text) > 1], key=lambda v: v.freq, reverse=True)
+        self.words = sorted([word for text, word in candidates.iteritems() if len(text) > 1], key=lambda v: v.freq, reverse=True)
         # 一些统计数据
         total = float(len(self.words))
         print "Avg len: ", sum([len(w.text) for w in self.words]) / total
