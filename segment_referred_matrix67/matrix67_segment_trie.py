@@ -8,7 +8,7 @@ from itertools import chain
 import jieba
 from line_profiler import LineProfiler
 # from memory_profiler import profile
-# import hat_triea
+# import hat_trie
 import pygtrie
 
 
