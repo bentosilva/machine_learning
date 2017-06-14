@@ -81,7 +81,7 @@ if __name__ == '__main__':
     def find_numbers(text):
         pat = r'(\d{1,3}(,\d{3})+(\.\d+)?|\d+\.?\d+)'
         for match in re.findall(pat, text):
-            yield float(match[0])
+            yield float(match[0].replace(',', ''))
 
     scores = dd(list)
     for f in find_files('../../segment_referred_matrix67/'):
