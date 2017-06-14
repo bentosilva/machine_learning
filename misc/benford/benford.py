@@ -12,6 +12,8 @@ ideal_distribution = np.array([0.30103, 0.176091, 0.124939, 0.09691, 0.0791812, 
 
 def get_leading_digit(number):
     """ 1 ~ 9 """
+    if number == 0:
+        return 0
     expo = floor(log10(number))
     return int(number * 10 ** -expo)
 
@@ -58,3 +60,42 @@ if __name__ == '__main__':
         print "ks test p-value: {}".format(kstest(dist))
         print "cosine similarity: {}".format(cosine_similarity(dist))
         print "euclidean distance normed: {}".format(euclidean_normed(dist))
+
+    import os
+    import re
+    import codecs
+    from collections import defaultdict as dd
+
+    def find_files(root):
+        cnt = 0
+        for folder, _, files in os.walk(root):
+            for f in files:
+                f = os.path.join(folder, f)
+                _, ext = os.path.splitext(f)
+                if ext == '.md':
+                    cnt += 1
+                    if cnt % 1000 == 0:
+                        print "number done: {}".format(cnt)
+                    yield f
+
+    def find_numbers(text):
+        pat = r'(\d{1,3}(,\d{3})+(\.\d+)?|\d+\.?\d+)'
+        for match in re.findall(pat, text):
+            yield float(match[0])
+
+    scores = dd(list)
+    for f in find_files('../../segment_referred_matrix67/'):
+        with codecs.open(f, 'r', 'utf-8') as fp:
+            numbers = np.array([0.0] * 10)
+            text = fp.read()
+            for number in find_numbers(text):
+                numbers[get_leading_digit(number)] += 1
+            total = sum(numbers[1:])
+            dist = np.array(numbers[1:]) / total
+            scores[f].append(pearson_correlation(dist))
+            scores[f].append(kstest(dist))
+            scores[f].append(cosine_similarity(dist))
+            scores[f].append(euclidean_normed(dist))
+    with codecs.open('benford_scores', 'w', 'utf-8') as fp:
+        for f, scorelist in scores.iteritems():
+            fp.write(u"{}\t{}\t{}\t{}\t{}\n".format(f, *scorelist))
