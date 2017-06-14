@@ -35,7 +35,7 @@ def kstest(dist):
 
 def cosine_similarity(dist):
     """
-    余弦相似度，角度越接近，余弦越小，故此，用 1 减去余弦值。结果越大越好
+    余弦相似度，角度越接近，余弦越大，余弦距离越小。故此，用 1 减去余弦距离，让结果越大越好
     但是，在测试中，我们看到，其实不是很相似的两个分布，也可能有较大的余弦值，故此这个 measurement 并不好
     """
     return 1 - spatial.distance.cosine(dist, ideal_distribution)
@@ -91,11 +91,14 @@ if __name__ == '__main__':
             for number in find_numbers(text):
                 numbers[get_leading_digit(number)] += 1
             total = sum(numbers[1:])
+            if total <= 0.0:
+                continue
             dist = np.array(numbers[1:]) / total
             scores[f].append(pearson_correlation(dist))
             scores[f].append(kstest(dist))
             scores[f].append(cosine_similarity(dist))
             scores[f].append(euclidean_normed(dist))
+            scores[f].append(str(list(dist)))
     with codecs.open('benford_scores', 'w', 'utf-8') as fp:
         for f, scorelist in scores.iteritems():
-            fp.write(u"{}\t{}\t{}\t{}\t{}\n".format(f, *scorelist))
+            fp.write(u"{}\t{}\t{}\t{}\t{}\t{}\n".format(scorelist[0], scorelist[1], scorelist[2], scorelist[3], scorelist[4], f.decode('utf-8')))
