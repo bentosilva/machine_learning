@@ -79,7 +79,7 @@ if __name__ == '__main__':
                     yield f
 
     def find_numbers(text):
-        pat = r'(\d{1,3}(,\d{3})+(\.\d+)?|\d+\.?\d+)'
+        pat = r'(\d{1,3}(,\d{3})+(\.\d+)?|\d*\.?\d+)'
         for match in re.findall(pat, text):
             yield float(match[0].replace(',', ''))
 
