@@ -98,7 +98,7 @@ if __name__ == '__main__':
             scores[f].append(kstest(dist))
             scores[f].append(cosine_similarity(dist))
             scores[f].append(euclidean_normed(dist))
-            scores[f].append(str(list(numbers)))
+            scores[f].append(str(list(numbers[1:])))
             scores[f].append(str(list(dist)))
     with codecs.open('benford_scores', 'w', 'utf-8') as fp:
         for f, scorelist in scores.iteritems():
