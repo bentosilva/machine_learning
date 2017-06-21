@@ -8,6 +8,7 @@
 from math import log10, floor
 import numpy as np
 from scipy import spatial
+import scipy
 from scipy.stats import chisquare
 
 
@@ -65,9 +66,18 @@ def kstest(counts, N):
 
 def kstest_pval(counts, N):
     """ 按上面函数注释汇总的公式，使用反函数来计算 p-value
+        后来发现这个 p-value 竟然可能超过 1.0 ...
+        后来根据 http://howtoprogram.eu/question/n-a,17804 以及
+        https://github.com/scipy/scipy/blob/master/scipy/stats/stats.py
+        联合得到最终的结果
     """
     stat = np.max(np.abs(np.array([np.sum((counts - N * ideal_distribution)[0:i + 1]) for i in range(9)]))) / N
-    return np.exp(-2.0 * stat * stat * N) * 2
+    # np.exp(-2.0 * stat * stat * N) * 2  这个会超过 1.0
+    en = np.sqrt(N / 2.0)
+    try:
+        return scipy.stats.distributions.kstwobign.sf(stat * en)
+    except:
+        return 1.0
 
 
 def cosine_similarity(dist):
