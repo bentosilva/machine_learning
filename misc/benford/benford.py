@@ -11,7 +11,8 @@ from scipy import spatial
 from scipy.stats import chisquare
 
 
-ideal_distribution = np.array([0.30103, 0.176091, 0.124939, 0.09691, 0.0791812, 0.0669468, 0.0579919, 0.0511525, 0.0457575])
+# ideal_distribution = np.array([0.30103, 0.176091, 0.124939, 0.09691, 0.0791812, 0.0669468, 0.0579919, 0.0511525, 0.0457575])
+ideal_distribution = np.array([np.log10(1 + 1.0 / i) for i in range(1, 10)])
 
 
 def get_leading_digit(number):
@@ -35,6 +36,12 @@ def pearson_chisquare(dist, N):
     return 15.507 - chisquare(dist, ideal_distribution)[0] * N
 
 
+def pearson_chisquare_pval(counts, N):
+    """ 注意，计算 p-value 时，一定要传入次数，而不是概率
+    """
+    return chisquare(counts, ideal_distribution * N)[1]
+
+
 def confidence_intervals(counts, N):
     """ 对于 5% 置信区间，z-value = 1.96
         返回观察值在 1~9 都落在置信区间的个数；越大越好，9 表示全部数字都落在置信区间
@@ -54,6 +61,13 @@ def kstest(counts, N):
     """
     cv = 1.36 / np.sqrt(N)
     return cv - np.max(np.abs(np.array([np.sum((counts - N * ideal_distribution)[0:i + 1]) for i in range(9)]))) / N
+
+
+def kstest_pval(counts, N):
+    """ 按上面函数注释汇总的公式，使用反函数来计算 p-value
+    """
+    stat = np.max(np.abs(np.array([np.sum((counts - N * ideal_distribution)[0:i + 1]) for i in range(9)]))) / N
+    return np.exp(-2.0 * stat * stat * N) * 2
 
 
 def cosine_similarity(dist):
